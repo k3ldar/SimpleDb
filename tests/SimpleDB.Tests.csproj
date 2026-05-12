@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(FrameWorkLatestVersion)</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+	<RunAnalyzersDuringBuild>$(RunAnalyzersDuringBuild)</RunAnalyzersDuringBuild>
+	<RunAnalyzersDuringLiveAnalysis>$(RunAnalyzersDuringLiveAnalysis)</RunAnalyzersDuringLiveAnalysis>
+	<RunAnalyzers>$(RunAnalyzers)</RunAnalyzers>
+	<RunCodeAnalysis>$(RunCodeAnalysis)</RunCodeAnalysis>
+	<AnalysisLevel>$(AnalysisLevel)</AnalysisLevel>
+	<AnalysisMode>$(AnalysisMode)</AnalysisMode>
+	<EnableNETAnalyzers>$(EnableNETAnalyzers)</EnableNETAnalyzers>
+  </PropertyGroup>
+	
+  <PropertyGroup>
+	  <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+	  <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
+	  <RunAnalyzers>false</RunAnalyzers>
+	  <RunCodeAnalysis>false</RunCodeAnalysis>
+	  <AnalysisLevel>none</AnalysisLevel>
+	  <AnalysisMode>none</AnalysisMode>
+	  <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\SimpleDB.csproj" />
+    <ProjectReference Include="..\SqlServer\SimpleDb.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="PluginManager" Version="5.10.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.3.0.106239">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

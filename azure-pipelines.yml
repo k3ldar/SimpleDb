@@ -1,0 +1,79 @@
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- develop
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+- task: NuGetToolInstaller@1
+  displayName: Get nuget installer
+
+- task: NuGetCommand@2
+  displayName: Restore nuget packages
+  inputs:
+    restoreSolution: '$(solution)'
+
+- task: VSBuild@1
+  displayName: Build solution
+  inputs:
+    solution: '$(solution)'
+    msbuildArgs: '/p:DeployOnBuild=false /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:DesktopBuildPackageLocation="$(build.artifactStagingDirectory)\WebApp.zip" /p:DeployIisAppPath="Default Web Site"'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+    
+- task: VisualStudioTestPlatformInstaller@1
+  displayName: Install test platform
+  enabled: true
+  inputs:
+    packageFeedSelector: 'nugetOrg'
+    versionSelector: 'latestPreRelease'
+    
+- task: VSTest@2
+  displayName: Run unit tests
+  enabled: true
+  continueOnError: true
+  inputs:
+    runSettingsFile: 'Tests\test.runsettings'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    testSelector: 'testAssemblies'
+    testAssemblyVer2: |
+      **\*.tests.dll
+      !**\*TestAdapter.dll
+      !**\obj\**
+    searchFolder: '$(System.DefaultWorkingDirectory)'
+    runOnlyImpactedTests: false
+    runInParallel: false
+    codeCoverageEnabled: true
+    distributionBatchType: 'basedOnExecutionTime'
+
+- task: PublishTestResults@2
+  displayName: Publish test results
+  enabled: true
+  inputs:
+    testResultsFormat: 'VSTest'
+    testResultsFiles: '**/TEST-*.xml'
+    failTaskOnFailedTests: false
+    testRunTitle: 'Publish Unit Tests'
+    
+- task: CopyFiles@2
+  inputs:
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+    contents: '**\*.nupkg'
+    cleanTargetfolder: true
+
+- task: PublishBuildArtifacts@1    
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(build.artifactstagingdirectory)'
