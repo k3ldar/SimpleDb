@@ -28,22 +28,58 @@ using AppSettings;
 
 namespace SimpleDB
 {
-	/// <summary>
-	/// Settings applied to Simple Db
-	/// </summary>
-	public class SimpleDBSettings
-	{
-		/// <summary>
-		/// Path where tables are located
-		/// </summary>
-		/// <value>string</value>
-		public string Path { get; set; }
+    /// <summary>
+    /// Settings applied to Simple Db
+    /// </summary>
+    public class SimpleDBSettings
+    {
+        /// <summary>
+        /// Path where tables are located
+        /// </summary>
+        /// <value>string</value>
+        public string Path { get; set; }
 
-		/// <summary>
-		/// Encryption key used to encrypt data in tables
-		/// </summary>
-		[SettingString(false, SharedPluginFeatures.Constants.MinimumKeyLength, SharedPluginFeatures.Constants.MaximumKeyLength)]
-		[SettingDefault("DSFOIRTEWRasd/flkqw409r sdaedf2134A")]
-		public string EnycryptionKey { get; set; }
-	}
+        /// <summary>
+        /// Encryption key used to encrypt data in tables
+        /// </summary>
+        [SettingString(false, SharedPluginFeatures.Constants.MinimumKeyLength, SharedPluginFeatures.Constants.MaximumKeyLength)]
+        [SettingDefault("DSFOIRTEWRasd/flkqw409r sdaedf2134A")]
+        public string EnycryptionKey { get; set; }
+
+        /// <summary>
+        /// Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception, 
+        /// this is used when clearing the memory cache for tables that are not being used and have not been accessed for a period of time.
+        /// </summary>
+        public uint LockTimeoutClearMemoryMs { get; set; } = 300;
+
+        /// <summary>
+        /// Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+        /// this is used when performing a checkpoint operation.
+        /// </summary>
+        public uint LockTimeoutCheckpointMs { get; set; } = 250;
+
+        /// <summary>
+        /// Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+        /// this is used when performing a database operation.
+        /// </summary>
+        public uint LockTimeoutOperationMs { get; set; } = 30000;
+
+        /// <summary>
+        /// Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+        /// this is used when performing an index manager operation.
+        /// </summary>
+        public uint LockTimeoutIndexManagerMs { get; set; } = 10000;
+
+
+        /// <summary>
+        /// Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+        /// this is used when performing a foreign key manager operation.
+        /// </summary>
+        public uint LockTimeoutForeignKeyManagerMs { get; set; } = 10000;
+
+        /// <summary>
+        /// Number of WAL entries that must accumulate before a database wide checkpoint is attempted.
+        /// </summary>
+        public uint WalCheckpointThreshold { get; set; } = 1000;
+    }
 }

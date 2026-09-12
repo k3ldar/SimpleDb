@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDB", "src\SimpleDB.cs
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDB.Tests", "tests\SimpleDB.Tests.csproj", "{190EC764-FA0A-4CB5-5F5D-1B5A6D63E22E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDb.SqlServer", "SqlServer\SimpleDb.SqlServer.csproj", "{068DB431-20E7-F66B-64B1-2BC7DE78F624}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{BA0CFDDA-DAD5-4D43-92F5-324ED27E1B29}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{1115B039-2FC0-45E7-A6E8-14EFE743D62F}"
@@ -18,8 +16,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{81A4BF5C-1835-4AA3-B809-60B46B869CA8}"
 	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDB.Console", "SimpleDB.Console\SimpleDB.Console.csproj", "{A7EDE88E-1F26-4704-BCDD-32251C50B37E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +36,10 @@ Global
 		{190EC764-FA0A-4CB5-5F5D-1B5A6D63E22E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{190EC764-FA0A-4CB5-5F5D-1B5A6D63E22E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{190EC764-FA0A-4CB5-5F5D-1B5A6D63E22E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{068DB431-20E7-F66B-64B1-2BC7DE78F624}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{068DB431-20E7-F66B-64B1-2BC7DE78F624}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{068DB431-20E7-F66B-64B1-2BC7DE78F624}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{068DB431-20E7-F66B-64B1-2BC7DE78F624}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7EDE88E-1F26-4704-BCDD-32251C50B37E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7EDE88E-1F26-4704-BCDD-32251C50B37E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7EDE88E-1F26-4704-BCDD-32251C50B37E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7EDE88E-1F26-4704-BCDD-32251C50B37E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -23,99 +23,100 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Interfaces;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Writers
 {
-	internal sealed class TableWriteVersionOne : IDataWriter
-	{
-		public ushort Version => 1;
+    [ExcludeFromCodeCoverage(Justification = "Unused internal class, required for backwards compatibility only")]
+    internal sealed class TableWriteVersionOne : IDataWriter
+    {
+        public ushort Version => 1;
 
-		public void WriteData<T>(FileStream fileStream, List<T> recordsToSave,
-			CompressionType compressionType, PageSize pageSize,
-			ref byte compactPercent, ref int pageCount)
-		{
-			byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
+        public void WriteData<T>(FileStream fileStream, List<T> recordsToSave,
+            CompressionType compressionType, PageSize pageSize,
+            ref byte compactPercent, ref int pageCount)
+        {
+            byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
 
-			int dataLength = data.Length;
-			bool isCompressed = false;
+            int dataLength = data.Length;
+            bool isCompressed = false;
 
-			using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
-			writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
+            writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
-				isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out dataLength);
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
+                isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out dataLength);
 
-				if (isCompressed)
-				{
-					compressionType = CompressionType.Brotli;
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(data.Length);
-					InternalSaveData(writer, compressedData[..dataLength].ToArray(), pageSize, ref pageCount);
-					compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
-				}
-				else
-				{
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(data.Length);
-					InternalSaveData(writer, data, pageSize, ref pageCount);
-				}
-			}
-			else
-			{
-				writer.Write((byte)compressionType);
-				writer.Write(recordsToSave.Count);
-				writer.Write(data.Length);
-				InternalSaveData(writer, data, pageSize, ref pageCount);
-			}
+                if (isCompressed)
+                {
+                    compressionType = CompressionType.Brotli;
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(data.Length);
+                    InternalSaveData(writer, compressedData[..dataLength].ToArray(), pageSize, ref pageCount);
+                    compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
+                }
+                else
+                {
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(data.Length);
+                    InternalSaveData(writer, data, pageSize, ref pageCount);
+                }
+            }
+            else
+            {
+                writer.Write((byte)compressionType);
+                writer.Write(recordsToSave.Count);
+                writer.Write(data.Length);
+                InternalSaveData(writer, data, pageSize, ref pageCount);
+            }
 
-		}
+        }
 
-		private static void InternalSaveData(BinaryWriter writer, byte[] data, PageSize pageSize, ref int pageCount)
-		{
-			pageCount = data.Length / (int)pageSize;
+        private static void InternalSaveData(BinaryWriter writer, byte[] data, PageSize pageSize, ref int pageCount)
+        {
+            pageCount = data.Length / (int)pageSize;
 
-			if (data.Length % (int)pageSize > 0)
-				pageCount++;
+            if (data.Length % (int)pageSize > 0)
+                pageCount++;
 
-			writer.Write(data.Length);
-			writer.Write(pageCount);
-			int remainingData = data.Length;
-			int pageSizeInt = (int)pageSize;
+            writer.Write(data.Length);
+            writer.Write(pageCount);
+            int remainingData = data.Length;
+            int pageSizeInt = (int)pageSize;
 
-			for (int i = 0; i < pageCount; i++)
-			{
-				long nextPageStart = writer.BaseStream.Position + pageSizeInt + Consts.PageHeaderSize;
-				int dataToWrite = remainingData > pageSizeInt ? pageSizeInt : remainingData;
+            for (int i = 0; i < pageCount; i++)
+            {
+                long nextPageStart = writer.BaseStream.Position + pageSizeInt + Consts.PageHeaderSize;
+                int dataToWrite = remainingData > pageSizeInt ? pageSizeInt : remainingData;
 
-				// page number 4
-				writer.Write(i + 1);
+                // page number 4
+                writer.Write(i + 1);
 
-				// page type 1
-				writer.Write(Consts.PageTypeData);
+                // page type 1
+                writer.Write(Consts.PageTypeData);
 
-				// page version 2
-				writer.Write(Consts.PageVersion);
+                // page version 2
+                writer.Write(Consts.PageVersion);
 
-				// next page 8
-				writer.Write(nextPageStart);
+                // next page 8
+                writer.Write(nextPageStart);
 
-				// size of data on page 4
-				writer.Write(dataToWrite);
+                // size of data on page 4
+                writer.Write(dataToWrite);
 
-				// write chunk of data 
-				writer.Write(data, i * pageSizeInt, dataToWrite);
+                // write chunk of data 
+                writer.Write(data, i * pageSizeInt, dataToWrite);
 
-				remainingData -= dataToWrite;
-			}
-		}
-	}
+                remainingData -= dataToWrite;
+            }
+        }
+    }
 }

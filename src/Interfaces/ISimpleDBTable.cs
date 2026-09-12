@@ -26,70 +26,43 @@
 
 using PluginManager.Abstractions;
 
-using SharedPluginFeatures;
-
 namespace SimpleDB
 {
 
 
-	/// <summary>
-	/// add before/after insert/delete/update and add foreign key attributes and unique index attributes which can be validated
-	/// </summary>
-	public interface ISimpleDBTable
-	{
-		/// <summary>
-		/// Name of the table
-		/// </summary>
-		string TableName { get; }
+    /// <summary>
+    /// add before/after insert/delete/update and add foreign key attributes and unique index attributes which can be validated
+    /// </summary>
+    public interface ISimpleDBTable : ITableMetrics
+    {
+        /// <summary>
+        /// Determines whether an index works or not
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        bool IdExists(long id);
 
-		/// <summary>
-		/// Retrieves the caching strategy for the table
-		/// </summary>
-		CachingStrategy CachingStrategy { get; }
+        /// <summary>
+        /// Determines whether an ID is in use on a specific property or not
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        bool IdIsInUse(string propertyName, long value);
 
-		/// <summary>
-		/// Retrieves the write strategy for the table
-		/// </summary>
-		WriteStrategy WriteStrategy { get; }
+        /// <summary>
+        /// Initializes the table
+        /// </summary>
+        void Initialize(IPluginClassesService pluginClassesService);
 
-		/// <summary>
-		/// Determines the sliding memory timeout for the table
-		/// </summary>
-		TimeSpan SlidingMemoryTimeout { get; }
+        /// <summary>
+        /// Instructs the class to clear all cached items
+        /// </summary>
+        void ClearAllMemory();
 
-		/// <summary>
-		/// Determines whether an index works or not
-		/// </summary>
-		/// <param name="id"></param>
-		/// <returns></returns>
-		bool IdExists(long id);
-
-		/// <summary>
-		/// Determines whether an ID is in use on a specific property or not
-		/// </summary>
-		/// <param name="propertyName"></param>
-		/// <param name="value"></param>
-		/// <returns></returns>
-		bool IdIsInUse(string propertyName, long value);
-
-		/// <summary>
-		/// Initializes the table
-		/// </summary>
-		void Initialize(IPluginClassesService pluginClassesService);
-
-		/// <summary>
-		/// Instructs the class to clear all cached items
-		/// </summary>
-		void ClearAllMemory();
-
-		/// <summary>
-		/// Retrieves timings for operations within the table
-		/// </summary>
-		Dictionary<string, Timings> GetAllTimings { get; }
-
-		/// <summary>
-		/// Raises an event when an action is performed
-		/// </summary>
-		event SimpleDbEvent OnAction;
-	}
+        /// <summary>
+        /// Raises an event when an action is performed
+        /// </summary>
+        event SimpleDbEvent OnAction;
+    }
 }

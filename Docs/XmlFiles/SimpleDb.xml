@@ -4,6 +4,55 @@
         <name>SimpleDB</name>
     </assembly>
     <members>
+        <member name="T:SimpleDB.ColumnAttribute">
+            <summary>
+            Defines column constraints and metadata for database schema generation
+            Used by schema generators to map C# properties to database columns
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ColumnAttribute.#ctor">
+            <summary>
+            Default constructor
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.Name">
+            <summary>
+            Custom column name (if different from property name)
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.MaxLength">
+            <summary>
+            Maximum length for string columns (SQLite: VARCHAR(n))
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.Precision">
+            <summary>
+            Precision for decimal/numeric columns (total digits)
+            Default: 18
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.Scale">
+            <summary>
+            Scale for decimal/numeric columns (digits after decimal point)
+            Default: 2
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.IsNullable">
+            <summary>
+            Whether this column allows null values (default: true)
+            Note: Id property is always NOT NULL and AUTOINCREMENT
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.DefaultValue">
+            <summary>
+            Default value for this column if not specified during insert
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ColumnAttribute.IsIndexed">
+            <summary>
+            Whether this column is indexed for faster lookups
+            </summary>
+        </member>
         <member name="T:SimpleDB.ForeignKeyAttribute">
             <summary>
             Provides foreign key functionality for SimpleDB
@@ -36,6 +85,35 @@
         <member name="P:SimpleDB.ForeignKeyAttribute.Attributes">
             <summary>
             Allows the foreign key value to be the default for the type of property the value is linked to
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Attributes.SystemTableAttribute">
+            <summary>
+            Marks a table row class as an internal system table (e.g. the WAL <c>_walentries</c> table),
+            excluding it from user-facing table enumeration/registration and optionally selecting an
+            alternate <see cref="P:SimpleDB.Attributes.SystemTableAttribute.StorageEngine"/> for its underlying reader/writer.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Attributes.SystemTableAttribute.#ctor(SimpleDB.StorageEngine,System.Boolean)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="storageEngine">Storage engine to use for this system table, defaults to <see cref="F:SimpleDB.StorageEngine.Paged"/>.</param>
+            <param name="participatesInWal">
+            Indicates whether DML performed against this system table should generate WAL entries.
+            Defaults to <c>false</c>, as most system tables (e.g. the WAL table itself) must not log
+            against themselves to avoid recursion. Set to <c>true</c> for future system tables (e.g.
+            an internal audit/config table) that require crash-recovery coverage via the WAL.
+            </param>
+        </member>
+        <member name="P:SimpleDB.Attributes.SystemTableAttribute.StorageEngine">
+            <summary>
+            Gets the storage engine used to persist this system table's records.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Attributes.SystemTableAttribute.ParticipatesInWal">
+            <summary>
+            Gets whether this system table's DML operations should be recorded in the WAL.
             </summary>
         </member>
         <member name="T:SimpleDB.TableAttribute">
@@ -158,11 +236,240 @@
             </summary>
             <value>string</value>
         </member>
+        <member name="T:SimpleDB.BackupOptions">
+            <summary>
+            Options controlling how <see cref="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)"/> behaves.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupOptions.Path">
+            <summary>
+            Folder that the backup file will be written to. When null, defaults to a "Backups"
+            sub folder of <see cref="P:SimpleDB.ISimpleDBManager.Path"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupOptions.FileName">
+            <summary>
+            Name of the backup file. When null, a timestamped name is generated automatically.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupOptions.ForceCloseTransactions">
+            <summary>
+            When true, any active transactions are rolled back before the backup is taken. When
+            false and a transaction is active, <see cref="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)"/>
+            throws an <see cref="T:System.InvalidOperationException"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupOptions.ProgressCallback">
+            <summary>
+            Optional callback invoked as the backup progresses, so a UI or console can display
+            which stage/file is currently being processed and an approximate completion
+            percentage. May be called from the calling thread; implementations should be quick and
+            must not throw.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.BackupProgressEventArgs">
+            <summary>
+            Progress information reported during a backup or restore operation via
+            <see cref="P:SimpleDB.BackupOptions.ProgressCallback"/> / <see cref="P:SimpleDB.RestoreOptions.ProgressCallback"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.Stage">
+            <summary>
+            The stage the operation is currently in.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.CurrentItem">
+            <summary>
+            Name of the table or file currently being processed, when applicable to
+            <see cref="P:SimpleDB.BackupProgressEventArgs.Stage"/>; otherwise null.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.ItemsProcessed">
+            <summary>
+            Number of items (files/tables) processed so far within <see cref="P:SimpleDB.BackupProgressEventArgs.Stage"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.TotalItems">
+            <summary>
+            Total number of items (files/tables) expected within <see cref="P:SimpleDB.BackupProgressEventArgs.Stage"/>, when known;
+            otherwise 0.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.PercentComplete">
+            <summary>
+            Approximate overall completion percentage (0-100) for the whole backup/restore
+            operation, when it can be estimated; otherwise null.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupProgressEventArgs.Message">
+            <summary>
+            Short human readable description of what is currently happening, suitable for direct
+            display to a user.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.BackupProgressStage">
+            <summary>
+            Identifies the current stage of a <see cref="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)"/>
+            or <see cref="M:SimpleDB.ISimpleDBManager.RestoreDatabase(System.String,SimpleDB.RestoreOptions)"/> operation, reported
+            via <see cref="P:SimpleDB.BackupOptions.ProgressCallback"/> / <see cref="P:SimpleDB.RestoreOptions.ProgressCallback"/>
+            so a UI or console can display meaningful feedback.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.Preparing">
+            <summary>
+            The database is being made quiescent: active transactions are being closed (or
+            checked) and the WAL is being checkpointed to the table files.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.SafetyBackup">
+            <summary>
+            A safety backup of the live database is being taken before a restore overwrites it.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.PackingFile">
+            <summary>
+            An individual file is being read from disk and packed into the backup archive.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.WritingArchive">
+            <summary>
+            The packed archive is being compressed and written to disk.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.ClosingTables">
+            <summary>
+            Table file handles are being released so the underlying file can be overwritten.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.RestoringFile">
+            <summary>
+            An individual file is being extracted from the backup archive and written to disk.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.ReopeningTables">
+            <summary>
+            Table file handles are being re-acquired and the table state is being reloaded.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.Finalizing">
+            <summary>
+            The restored tables are being reconciled against the currently registered tables and
+            the transaction sequence is being reset.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.BackupProgressStage.Completed">
+            <summary>
+            The operation has completed.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.BackupResult">
+            <summary>
+            Outcome of a call to <see cref="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupResult.BackupFilePath">
+            <summary>
+            Full path to the backup file that was created.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupResult.FileCount">
+            <summary>
+            Number of files packed into the backup.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.BackupResult.BackupSizeBytes">
+            <summary>
+            Size, in bytes, of the resulting backup file on disk.
+            </summary>
+        </member>
         <member name="T:SimpleDB.SimpleDbEvent">
             <summary>
             Database event delegate
             </summary>
             <param name="sender"></param>
+        </member>
+        <member name="T:SimpleDB.TransactionAccessMode">
+            <summary>
+            Describes the access mode of a transaction, either read-only or read-write.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.TransactionAccessMode.ReadOnly">
+            <summary>
+            Transaction is readonly and cannot modify any data. Any attempt to do so will throw an exception.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.TransactionAccessMode.ReadWrite">
+            <summary>
+            Transaction is read-write and can modify data. Any changes made will be persisted to disk on commit.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.TransactionIsolationLevel">
+            <summary>
+            Describes the isolation level of a transaction, which determines how changes made by one transaction are visible to other transactions.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.TransactionIsolationLevel.DirtyRead">
+            <summary>
+            The transaction is not isolated from other transactions and can see changes made by them until they are committed. This is the default isolation level.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.StorageEngine">
+            <summary>
+            Describes the physical storage strategy used to persist a table's records to disk.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.StorageEngine.Paged">
+            <summary>
+            Default paged/versioned storage format used by regular tables (<see cref="T:SimpleDB.Internal.VersionedReadWriteFactory"/>).
+            Rewrites the full record set on each save.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.StorageEngine.AppendOnly">
+            <summary>
+            Lightweight sequential append storage format. Only new records are appended to the
+            end of the file on each save, avoiding a full rewrite. Intended for internal
+            system tables such as the write-ahead log (WAL).
+            </summary>
+        </member>
+        <member name="T:SimpleDB.OperationType">
+            <summary>
+            Type of DML operation a <see cref="T:SimpleDB.Internal.WalEntry"/> represents. WAL only covers
+            DML operations, not DDL (create/drop/alter table).
+            </summary>
+        </member>
+        <member name="F:SimpleDB.OperationType.Insert">
+            <summary>
+            Record was inserted
+            </summary>
+        </member>
+        <member name="F:SimpleDB.OperationType.Update">
+            <summary>
+            Record was updated
+            </summary>
+        </member>
+        <member name="F:SimpleDB.OperationType.Delete">
+            <summary>
+            Record was deleted
+            </summary>
+        </member>
+        <member name="F:SimpleDB.OperationType.Commit">
+            <summary>
+            Not a DML operation. Marks the point in the log at which a transaction committed;
+            every preceding entry sharing the same TransactionId is durable and must be kept,
+            and any transaction with no such marker is in doubt and must be undone at recovery.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.OperationType.Abort">
+            <summary>
+            Not a DML operation. Marks the point in the log at which a transaction was rolled
+            back. Its preceding entries have already been reversed in memory, so recovery must
+            reverse them on disk too but must never replay them.
+            </summary>
+            <remarks>
+            Required so that a rolled back transaction is a RESOLVED outcome rather than an
+            in-doubt one. Without it, entries belonging to a rollback would never gain a marker,
+            would be treated as permanently in doubt, and would hold WAL truncation back forever.
+            </remarks>
         </member>
         <member name="T:SimpleDB.CompressionType">
             <summary>
@@ -341,6 +648,37 @@
             Data is deleted if foreign key deleted
             </summary>
         </member>
+        <member name="T:SimpleDB.DatabaseLockTimeoutException">
+            <summary>
+            Exception thrown when the database wide lock could not be acquired within the permitted
+            time. The lock is only held for short, in memory operations and for checkpoints that flush
+            already loaded tables to disk, so this indicates a defect - a deadlock, a scope that was
+            never disposed, or a pathologically slow disk - rather than ordinary contention.
+            </summary>
+            <remarks>
+            This exists so callers are never handed the underlying <c>LockTimeoutException</c> from the
+            locking primitive, which is an implementation detail of how the gate happens to be built.
+            The original exception is always preserved as the inner exception.
+            </remarks>
+        </member>
+        <member name="M:SimpleDB.DatabaseLockTimeoutException.#ctor">
+            <summary>
+            Constructor
+            </summary>
+        </member>
+        <member name="M:SimpleDB.DatabaseLockTimeoutException.#ctor(System.String)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="message">Exception message</param>
+        </member>
+        <member name="M:SimpleDB.DatabaseLockTimeoutException.#ctor(System.String,System.Exception)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="message">Exception message</param>
+            <param name="innerException">Inner Exception</param>
+        </member>
         <member name="T:SimpleDB.ForeignKeyException">
             <summary>
             Foreign key exception class
@@ -386,6 +724,30 @@
             Original error message
             </summary>
         </member>
+        <member name="T:SimpleDB.TransactionException">
+            <summary>
+            Exception thrown when a transaction operation fails, including failures writing to the
+            write-ahead log (WAL).
+            </summary>
+        </member>
+        <member name="M:SimpleDB.TransactionException.#ctor">
+            <summary>
+            Constructor
+            </summary>
+        </member>
+        <member name="M:SimpleDB.TransactionException.#ctor(System.String)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="message">Exception message</param>
+        </member>
+        <member name="M:SimpleDB.TransactionException.#ctor(System.String,System.Exception)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="message">Exception message</param>
+            <param name="innerException">Inner Exception</param>
+        </member>
         <member name="T:SimpleDB.UniqueIndexException">
             <summary>
             Exception raised when a record with a unique index is inserted twice
@@ -428,6 +790,133 @@
         <member name="P:SimpleDB.InsertOptions.AssignPrimaryKey">
             <summary>
             Indicates whether the primary key is assigned or not
+            </summary>
+        </member>
+        <member name="T:SimpleDB.ICheckpointableTable">
+            <summary>
+            Implemented by tables that can flush their in memory record set to disk on demand as
+            part of a database wide checkpoint.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ICheckpointableTable.ParticipatesInWal">
+            <summary>
+            Indicates whether the table generates WAL entries. Only participating tables are
+            included when calculating the minimum watermark that governs WAL truncation - a non
+            participating table has no entries in the log and must never hold truncation back.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ICheckpointableTable.ForceWrite">
+            <summary>
+            Flushes the current record set to the table file. Deliberately does not touch the
+            checkpoint watermark - the caller advances it only once this has returned successfully,
+            otherwise a failed flush would be recorded as durable and the WAL entries needed to
+            recover it discarded.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ICheckpointableTable.AdvanceCheckpointWatermark(System.Int64)">
+            <summary>
+            Records that every WAL entry up to and including <paramref name="lastFlushedSequence"/>
+            is now reflected in this table's file. MUST only be called after a successful
+            <see cref="M:SimpleDB.ICheckpointableTable.ForceWrite"/>.
+            </summary>
+            <param name="lastFlushedSequence">Highest WAL SequenceNumber reflected on disk.</param>
+        </member>
+        <member name="T:SimpleDB.ICompactableTable`1">
+            <summary>
+            Implemented by tables that can permanently discard records and reclaim the disk space
+            they occupied, rather than only appending.
+            </summary>
+            <typeparam name="T">Row type held by the table.</typeparam>
+        </member>
+        <member name="M:SimpleDB.ICompactableTable`1.Compact(System.Func{`0,System.Boolean})">
+            <summary>
+            Discards every record for which <paramref name="keep"/> returns false and rewrites the
+            table file so the space is reclaimed. Deliberately generates no WAL entries and fires
+            no triggers - the discarded records are obsolete, not deleted by a user.
+            </summary>
+            <param name="keep">Predicate identifying the records that must survive.</param>
+        </member>
+        <member name="T:SimpleDB.ICompactingDataWriter">
+            <summary>
+            Implemented by data writers that need an explicit rewrite path. The versioned writers do
+            not - their normal WriteData already rewrites the whole file - but the append only writer
+            only ever adds to the tail and therefore cannot reclaim space without this.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ICompactingDataWriter.RewriteData``1(System.IO.FileStream,System.Collections.Generic.List{``0},SimpleDB.CompressionType,SimpleDB.PageSize,System.Byte@,System.Int32@)">
+            <summary>
+            Replaces the entire contents of the file with <paramref name="recordsToSave"/>,
+            releasing any space previously occupied by records no longer in the set.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.IDatabaseLock">
+             <summary>
+             Database wide mutual exclusion, implemented by the object that owns the table registry.
+             </summary>
+             <remarks>
+             This is deliberately a single reentrant lock rather than a reader/writer or counter based
+             gate. Two earlier attempts using an "active operations" counter deadlocked, because
+             committing a transaction re-enters the database to write the WAL and watermark system
+             tables. A counter cannot distinguish that nested re-entry from a second thread, so an
+             exclusive waiter blocked waiting for a count that could never drop to zero.
+            
+             Monitor is reentrant per thread, so nested re-entry is free and correct. The tables are
+             fully in memory, so transactions are short and serialising them is inexpensive.
+             </remarks>
+        </member>
+        <member name="M:SimpleDB.IDatabaseLock.AcquireForOperation">
+            <summary>
+            Acquires the database lock for ordinary work, waiting until it is available.
+            </summary>
+            <remarks>
+            Uses a generous timeout. A checkpoint is the only long held section and it is bounded
+            by flushing already in memory tables to disk, so a timeout here indicates a genuine
+            defect rather than ordinary contention and is allowed to throw.
+            </remarks>
+            <exception cref="T:SimpleDB.DatabaseLockTimeoutException">Thrown if the lock could not be acquired
+            within the permitted time.</exception>
+        </member>
+        <member name="M:SimpleDB.IDatabaseLock.TryAcquireForCheckpoint">
+            <summary>
+            Attempts to acquire the database lock for checkpointing, returning null if it is not
+            available promptly.
+            </summary>
+            <remarks>
+            A checkpoint is never urgent - it is a background optimisation that keeps the WAL from
+            growing without bound. If the lock is busy the checkpoint is abandoned and reattempted
+            on the next commit that still finds the WAL over threshold, so it must never throw or
+            stall a caller doing real work.
+            </remarks>
+        </member>
+        <member name="T:SimpleDB.IDatabaseLockScope">
+            <summary>
+            Implemented by a transaction that holds the database lock for its lifetime.
+            </summary>
+            <remarks>
+            The lock is acquired in BeginTransaction and released once the transaction has been
+            committed or rolled back, so it must travel with the transaction object rather than being
+            tracked separately - a transaction may legitimately be completed on a different code path
+            from the one that began it.
+            </remarks>
+        </member>
+        <member name="M:SimpleDB.IDatabaseLockScope.ReleaseDatabaseLock">
+            <summary>
+            Releases the database lock held by this transaction. Safe to call more than once.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.IDatabaseMetrics">
+            <summary>
+            Provides internal metrics for the database, such as timings and performance statistics.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IDatabaseMetrics.TransactionMetrics">
+            <summary>
+            Provides internal metrics for transactions, such as timings and performance statistics.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IDatabaseMetrics.TableMetrics">
+            <summary>
+            Dictionary of metrics for each table in the database, where the key is the table name and the value is the corresponding table metrics.
             </summary>
         </member>
         <member name="T:SimpleDB.IForeignKeyManager">
@@ -516,6 +1005,37 @@
             </summary>
             <param name="value"></param>
         </member>
+        <member name="T:SimpleDB.IMaintainableTable">
+            <summary>
+            Implemented by tables that support being closed and reopened while the process is running,
+            so that database wide maintenance operations (such as restore) can safely overwrite the
+            underlying table file on disk.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.IMaintainableTable.CloseForMaintenance">
+            <summary>
+            Flushes any in memory changes to disk and releases the underlying file handle so the
+            table file can be safely overwritten by an external process. The table remains
+            registered; only <see cref="M:SimpleDB.IMaintainableTable.ReopenAfterMaintenance"/> is valid to call afterwards.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.IMaintainableTable.ReopenAfterMaintenance">
+            <summary>
+            Re-acquires the underlying file handle after <see cref="M:SimpleDB.IMaintainableTable.CloseForMaintenance"/>,
+            revalidates the table file, replays any outstanding WAL entries and rebuilds indexes,
+            exactly as though the table had just been constructed.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.IOperationalTimings">
+            <summary>
+            Provides internal timings for various operations, allowing for performance monitoring and analysis.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IOperationalTimings.GetAllTimings">
+            <summary>
+            Gets a dictionary of all timings for various operations, where the key is the operation name and the value is the corresponding timing information.
+            </summary>
+        </member>
         <member name="T:SimpleDB.ISimpleDBManager">
             <summary>
             Interface for managing SimpleDB initialization and other key areas of operation
@@ -540,7 +1060,7 @@
         </member>
         <member name="P:SimpleDB.ISimpleDBManager.Tables">
             <summary>
-            List of all tables tht have been registered
+            List of all tables that have been registered
             </summary>
         </member>
         <member name="M:SimpleDB.ISimpleDBManager.Initialize(PluginManager.Abstractions.IPluginClassesService)">
@@ -557,6 +1077,33 @@
             <summary>
             Event raised when memory is cleared
             </summary>
+        </member>
+        <member name="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)">
+            <summary>
+            Backs up the database to a single, Brotli compressed file.
+            </summary>
+            <remarks>
+            The database is locked for the duration of the backup. Any pending WAL entries are
+            checkpointed (committed to the table files) before the files are packed, so the
+            resulting backup never depends on WAL contents to be consistent.
+            </remarks>
+            <param name="options">Options controlling where the backup is written and how active
+            transactions are handled. When null, defaults are used.</param>
+            <returns>Details of the backup that was created.</returns>
+        </member>
+        <member name="M:SimpleDB.ISimpleDBManager.RestoreDatabase(System.String,SimpleDB.RestoreOptions)">
+            <summary>
+            Restores the database from a backup file previously created by
+            <see cref="M:SimpleDB.ISimpleDBManager.BackupDatabase(SimpleDB.BackupOptions)"/>.
+            </summary>
+            <remarks>
+            The database is locked for the duration of the restore so no other operation can be
+            performed while it runs. On completion, the transaction id sequence is reset to zero.
+            </remarks>
+            <param name="backupFilePath">Full path to the backup file to restore.</param>
+            <param name="options">Options controlling how active transactions and the safety
+            backup are handled. When null, defaults are used.</param>
+            <returns>Details of the restore that was performed.</returns>
         </member>
         <member name="T:SimpleDB.ISimpleDBOperations`1">
             <summary>
@@ -731,26 +1278,6 @@
             add before/after insert/delete/update and add foreign key attributes and unique index attributes which can be validated
             </summary>
         </member>
-        <member name="P:SimpleDB.ISimpleDBTable.TableName">
-            <summary>
-            Name of the table
-            </summary>
-        </member>
-        <member name="P:SimpleDB.ISimpleDBTable.CachingStrategy">
-            <summary>
-            Retrieves the caching strategy for the table
-            </summary>
-        </member>
-        <member name="P:SimpleDB.ISimpleDBTable.WriteStrategy">
-            <summary>
-            Retrieves the write strategy for the table
-            </summary>
-        </member>
-        <member name="P:SimpleDB.ISimpleDBTable.SlidingMemoryTimeout">
-            <summary>
-            Determines the sliding memory timeout for the table
-            </summary>
-        </member>
         <member name="M:SimpleDB.ISimpleDBTable.IdExists(System.Int64)">
             <summary>
             Determines whether an index works or not
@@ -774,11 +1301,6 @@
         <member name="M:SimpleDB.ISimpleDBTable.ClearAllMemory">
             <summary>
             Instructs the class to clear all cached items
-            </summary>
-        </member>
-        <member name="P:SimpleDB.ISimpleDBTable.GetAllTimings">
-            <summary>
-            Retrieves timings for operations within the table
             </summary>
         </member>
         <member name="E:SimpleDB.ISimpleDBTable.OnAction">
@@ -812,6 +1334,56 @@
             Initial data that will be added when the table is first created and for each upgrade
             </summary>
         </member>
+        <member name="T:SimpleDB.ITableMetrics">
+            <summary>
+            Provides internal metrics for a table, such as caching strategy, write strategy, and sliding memory timeout.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.TableName">
+            <summary>
+            Name of the table
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.CachingStrategy">
+            <summary>
+            Retrieves the caching strategy for the table
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.WriteStrategy">
+            <summary>
+            Retrieves the write strategy for the table
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.SlidingMemoryTimeout">
+            <summary>
+            Determines the sliding memory timeout for the table
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.GetAllTimings">
+            <summary>
+            Retrieves timings for operations within the table
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.LogicalDataSizeBytes">
+            <summary>
+            Total logical size (uncompressed) of the data held by the table, in bytes
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.PhysicalDataSizeBytes">
+            <summary>
+            Total physical size (on-disk / stored) of the data held by the table, in bytes
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.InMemoryCacheSizeBytes">
+            <summary>
+            Size in bytes of the records currently held in the in-memory cache (if any)
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITableMetrics.RecordCount">
+            <summary>
+            Total number of records held by the table
+            </summary>
+        </member>
         <member name="T:SimpleDB.ITableTriggers`1">
             <summary>
             Definition for class containing triggers for a table
@@ -830,147 +1402,348 @@
             </summary>
             <vvalue>TriggerType</vvalue>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.BeforeInsert(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.BeforeInsert(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows, before inserting
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.AfterInsert(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.AfterInsert(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows, after inserting
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.BeforeDelete(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.BeforeDelete(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows, before deleting
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.AfterDelete(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.AfterDelete(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows after deleting
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.BeforeUpdate(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.BeforeUpdate(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows affected, before updating
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.BeforeUpdate(`0,`0)">
+        <member name="M:SimpleDB.ITableTriggers`1.BeforeUpdate(`0,`0,SimpleDB.ITriggerContext)">
             <summary>
             Method fired for each row before updating, with the option of comparing the new row with the old row
             </summary>
             <param name="newRecord"></param>
             <param name="oldRecord"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="M:SimpleDB.ITableTriggers`1.AfterUpdate(System.Collections.Generic.List{`0})">
+        <member name="M:SimpleDB.ITableTriggers`1.AfterUpdate(System.Collections.Generic.List{`0},SimpleDB.ITriggerContext)">
             <summary>
             Method fired for all rows affected, after updating
             </summary>
             <param name="records"></param>
+            <param name="triggerContext"></param>
         </member>
-        <member name="T:SimpleDB.Internal.Schema.ColumnDefinition">
+        <member name="T:SimpleDB.ITransaction">
             <summary>
-            Immutable descriptor for a single database column, built by
-            <see cref="M:SimpleDB.Internal.Schema.ISchemaMapper.GetColumns``1"/> from a reflected C# property.
+            Interface describing a transaction
             </summary>
         </member>
-        <member name="M:SimpleDB.Internal.Schema.ColumnDefinition.#ctor(System.String,System.String,System.Reflection.PropertyInfo,System.Boolean,System.Boolean,System.Boolean,System.String,SimpleDB.IndexType)">
+        <member name="P:SimpleDB.ITransaction.TransactionId">
             <summary>
-            Initialises a new <see cref="T:SimpleDB.Internal.Schema.ColumnDefinition"/>.
-            </summary>
-            <param name="columnName">The column name (matches the C# property name).</param>
-            <param name="databaseType">The database-specific type string, e.g. <c>NVARCHAR(256)</c> for SQL Server.</param>
-            <param name="property">The reflected <see cref="T:System.Reflection.PropertyInfo"/> this column maps to.</param>
-            <param name="isNullable">Whether the column allows <c>NULL</c>.</param>
-            <param name="isPrimaryKey">Whether the column is the primary key (<c>Id</c>).</param>
-            <param name="isUniqueIndex">Whether a unique index should be created for this column.</param>
-            <param name="uniqueIndexName">The name of the unique index, or <c>null</c> when <paramref name="isUniqueIndex"/> is <c>false</c>.</param>
-            <param name="indexType">The sort direction used when creating the unique index.</param>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.ColumnName">
-            <summary>Gets the column name.</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.DatabaseType">
-            <summary>Gets the database-specific data type string (e.g. <c>INT</c>, <c>NVARCHAR(256)</c>).</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.Property">
-            <summary>Gets the reflected <see cref="T:System.Reflection.PropertyInfo"/> this column maps to.</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.IsNullable">
-            <summary>Gets a value indicating whether the column allows <c>NULL</c>.</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.IsPrimaryKey">
-            <summary>Gets a value indicating whether this column is the primary key.</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.IsUniqueIndex">
-            <summary>Gets a value indicating whether a unique index exists for this column.</summary>
-        </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.UniqueIndexName">
-            <summary>
-            Gets the unique index name, or <c>null</c> when <see cref="P:SimpleDB.Internal.Schema.ColumnDefinition.IsUniqueIndex"/> is <c>false</c>.
+            Gets the transaction id
             </summary>
         </member>
-        <member name="P:SimpleDB.Internal.Schema.ColumnDefinition.IndexType">
-            <summary>Gets the index sort direction for the unique index.</summary>
-        </member>
-        <member name="T:SimpleDB.Internal.Schema.ISchemaMapper">
+        <member name="M:SimpleDB.ITransaction.Commit">
             <summary>
-            Defines database-agnostic schema mapping operations for creating and maintaining
-            tables based on C# TableRowDefinition subclasses.
+            Commits the transaction
             </summary>
         </member>
-        <member name="M:SimpleDB.Internal.Schema.ISchemaMapper.GetTableName``1">
+        <member name="M:SimpleDB.ITransaction.Rollback">
             <summary>
-            Returns the schema name and table name for the specified type.
-            </summary>
-            <typeparam name="T">The TableRowDefinition subclass.</typeparam>
-            <returns>A tuple containing the schema name and table name.</returns>
-        </member>
-        <member name="M:SimpleDB.Internal.Schema.ISchemaMapper.GetTableAttributes``1">
-            <summary>
-            Reads the TableAttribute from the specified type.
-            </summary>
-            <typeparam name="T">The TableRowDefinition subclass.</typeparam>
-            <returns>The TableAttribute associated with the type.</returns>
-        </member>
-        <member name="M:SimpleDB.Internal.Schema.ISchemaMapper.GetColumns``1">
-            <summary>
-            Builds the ordered list of ColumnDefinitions for the specified type by
-            reflecting all public instance properties that should be persisted.
-            </summary>
-            <typeparam name="T">The TableRowDefinition subclass.</typeparam>
-            <returns>A read-only list of column definitions.</returns>
-        </member>
-        <member name="M:SimpleDB.Internal.Schema.ISchemaMapper.EnsureTable(System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{SimpleDB.Internal.Schema.ColumnDefinition})">
-            <summary>
-            Ensures that the database table exists and is up-to-date with the current column set.
-            Any columns present in C# but missing from the database are added as nullable.
-            Columns that no longer exist in C# are left in place.
-            </summary>
-            <param name="connectionString">The database connection string.</param>
-            <param name="schemaName">The schema name.</param>
-            <param name="tableName">The table name.</param>
-            <param name="columns">The list of column definitions.</param>
-            <returns>True if the table was newly created; false if it already existed.</returns>
-        </member>
-        <member name="T:SimpleDB.Internal.Schema.ITypeMapper">
-            <summary>
-            Defines database-agnostic type mapping operations for converting C# property types
-            to database-specific type strings.
+            Rolls back the transaction
             </summary>
         </member>
-        <member name="M:SimpleDB.Internal.Schema.ITypeMapper.GetDatabaseType(System.Reflection.PropertyInfo,System.Boolean@)">
+        <member name="P:SimpleDB.ITransaction.AccessMode">
             <summary>
-            Maps a C# property to its database-specific type string and determines nullability.
+            Gets the access mode of the transaction
             </summary>
-            <param name="property">The PropertyInfo to map.</param>
-            <param name="isNullable">Output parameter indicating whether the column allows NULL.</param>
-            <returns>The database-specific type string (e.g., "NVARCHAR(256)", "INT").</returns>
+        </member>
+        <member name="P:SimpleDB.ITransaction.IsolationLevel">
+            <summary>
+            Gets the isolation level of the transaction
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransaction.Started">
+            <summary>
+            Gets the time when the transaction was started
+            </summary>
+        </member>
+        <member name="T:SimpleDB.ITransactionalSimpleDBOperations`1">
+            <summary>
+            Interface for transactional operations on a SimpleDB table
+            </summary>
+            <typeparam name="T"></typeparam>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Insert(`0,SimpleDB.InsertOptions,SimpleDB.ITransaction)">
+            <summary>
+            Inserts a record into the table within the context of a transaction
+            </summary>
+            <param name="record">The record to insert</param>
+            <param name="insertOptions">The insert options</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Insert(System.Collections.Generic.List{`0},SimpleDB.InsertOptions,SimpleDB.ITransaction)">
+            <summary>
+            Inserts a record into the table within the context of a transaction
+            </summary>
+            <param name="records">The records to insert</param>
+            <param name="insertOptions">The insert options</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Update(`0,SimpleDB.ITransaction)">
+            <summary>
+            Updates a record in the table within the context of a transaction
+            </summary>
+            <param name="record">The record to update</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Update(System.Collections.Generic.List{`0},SimpleDB.ITransaction)">
+            <summary>
+            Updates a list of records in the table within the context of a transaction
+            </summary>
+            <param name="records">The records to update</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Delete(`0,SimpleDB.ITransaction)">
+            <summary>
+            Deletes a list of records from the table within the context of a transaction
+            </summary>
+            <param name="record">The record to delete</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Delete(System.Collections.Generic.List{`0},SimpleDB.ITransaction)">
+            <summary>
+            Deletes a list of records from the table within the context of a transaction
+            </summary>
+            <param name="records">The records to delete</param>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionalSimpleDBOperations`1.Truncate(SimpleDB.ITransaction)">
+            <summary>
+            Truncates the table within the context of a transaction
+            </summary>
+            <param name="transaction">The transaction context</param>
+        </member>
+        <member name="T:SimpleDB.ITransactionManager">
+            <summary>
+            Interface describing a transaction manager
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ITransactionManager.BeginTransaction(SimpleDB.TransactionAccessMode,SimpleDB.TransactionIsolationLevel)">
+            <summary>
+            Begins a new transaction
+            </summary>
+            <param name="accessMode">The access mode of the transaction</param>
+            <param name="isolationLevel">The isolation level of the transaction</param>
+            <returns>The started transaction</returns>
+        </member>
+        <member name="M:SimpleDB.ITransactionManager.CommitTransaction(SimpleDB.ITransaction)">
+            <summary>
+            Commits a transaction
+            </summary>
+            <param name="transaction">The transaction to commit</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionManager.RollbackTransaction(SimpleDB.ITransaction)">
+            <summary>
+            Rolls back a transaction
+            </summary>
+            <param name="transaction">The transaction to roll back</param>
+        </member>
+        <member name="M:SimpleDB.ITransactionManager.CheckpointDatabase">
+            <summary>
+            Forces an immediate database wide checkpoint, flushing every registered table's in
+            memory record set to disk and truncating the WAL of entries that are now durable
+            elsewhere. Unlike the automatic checkpoint triggered on commit, this is not gated by
+            the WAL threshold, but it still refuses to run while a transaction is active.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.ITransactionMetrics">
+            <summary>
+            Provides internal metrics for transactions, such as timings and performance statistics.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionMetrics.ActiveTransactionCount">
+            <summary>
+            Number of user transactions that have been started but not yet committed or rolled
+            back. Transactions begun internally by a checkpoint are excluded.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionMetrics.CheckpointsSkippedForActiveTransactions">
+            <summary>
+            Number of checkpoints abandoned because a transaction was in flight when the WAL
+            crossed the checkpoint threshold.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionMetrics.CheckpointsCompleted">
+            <summary>
+            Number of checkpoints that have successfully run to completion.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionMetrics.NextTransactionId">
+            <summary>
+            Gets the next transaction ID that will be assigned to a new transaction. This can be used for monitoring and debugging purposes.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionMetrics.ActiveTransactions">
+            <summary>
+            Gets a read-only list of all active transactions, allowing for inspection of their state and properties.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.ITransactionSequenceAccessor">
+            <summary>
+            Internal accessor providing lazy, engine-owned access to the named sequence system
+            table, and helpers for reading/incrementing a single named sequence.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITransactionSequenceAccessor.SequenceTable">
+            <summary>
+            Gets the sequence table operations instance, resolved lazily on first access.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ITransactionSequenceAccessor.CurrentValue">
+            <summary>
+            Gets the current value of the named sequence without incrementing it. Returns
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ITransactionSequenceAccessor.NextValue">
+            <summary>
+            Retrieves the next value of the named sequence, incrementing it in the process.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.ITransactionSequenceAccessor.Reset">
+            <summary>
+            Resets the sequence back to zero.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.ITriggerContext">
+            <summary>
+            Interface describing the context in which a trigger is executed
+            </summary>
+        </member>
+        <member name="P:SimpleDB.ITriggerContext.Transaction">
+            <summary>
+            Gets the transaction associated with the trigger context
+            </summary>
+        </member>
+        <member name="T:SimpleDB.IWalEntryCollector">
+            <summary>
+            Internal-only contract implemented by Transaction, allowing WAL entries to be collected
+            against the active transaction ahead of commit.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IWalEntryCollector.Entries">
+            <summary>
+            Gets the WAL entries collected so far for this transaction.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.IWalEntryCollector.AddEntry(SimpleDB.Internal.WalEntry)">
+            <summary>
+            Adds a WAL entry to the transaction's in-memory log.
+            </summary>
+            <param name="entry">Entry to add.</param>
+        </member>
+        <member name="T:SimpleDB.IWalRecorder">
+            <summary>
+            Strategy responsible for capturing WAL entries for DML performed against a table.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.IWalRecorder.Record(SimpleDB.ITransaction,System.String,SimpleDB.OperationType,System.Int64,System.Byte[],System.Int64,System.Byte[])">
+            <summary>
+            Records a DML operation against the supplied transaction, if the strategy participates in WAL.
+            </summary>
+            <param name="transaction">Transaction the operation is being performed within.</param>
+            <param name="tableName">Name of the table the operation was performed against.</param>
+            <param name="operation">Type of DML operation performed.</param>
+            <param name="recordId">Id of the record the operation was performed against.</param>
+            <param name="serializedRecord">Serialized bytes of the record.</param>
+            <param name="expectedUpdatedTicks">The UpdatedTicks of the record as known when the operation was performed (-1 for Insert), used for optimistic concurrency checking at commit time.</param>
+            <param name="undoRecord">Serialized bytes of the record as it existed before the operation, used to undo it on rollback. Null for Insert.</param>
+        </member>
+        <member name="T:SimpleDB.IWalTableAccessor">
+            <summary>
+            Internal accessor providing lazy, engine-owned access to the WAL system table.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IWalTableAccessor.WalTable">
+            <summary>
+            Gets the WAL table operations instance, resolved lazily on first access.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.IWalUndoTarget">
+            <summary>
+            Implemented by tables that are able to reverse a previously applied operation when the
+            owning transaction is rolled back.
+            </summary>
+            <remarks>
+            Undo operations deliberately bypass triggers, foreign key validation and WAL recording;
+            they restore state that the table itself previously produced, so re-validating or
+            re-logging it would be incorrect.
+            </remarks>
+        </member>
+        <member name="M:SimpleDB.IWalUndoTarget.UndoInsert(System.Int64)">
+            <summary>
+            Reverses an insert by removing the record with the supplied id.
+            </summary>
+            <param name="recordId">Id of the record that was inserted.</param>
+        </member>
+        <member name="M:SimpleDB.IWalUndoTarget.UndoUpdate(System.Int64,System.Byte[])">
+            <summary>
+            Reverses an update by restoring the record to its pre-update state.
+            </summary>
+            <param name="recordId">Id of the record that was updated.</param>
+            <param name="undoRecord">Serialized bytes of the record as it existed before the update.</param>
+        </member>
+        <member name="M:SimpleDB.IWalUndoTarget.UndoDelete(System.Byte[])">
+            <summary>
+            Reverses a delete by reinstating the record that was removed.
+            </summary>
+            <param name="undoRecord">Serialized bytes of the record as it existed before the delete.</param>
+        </member>
+        <member name="T:SimpleDB.IWatermarkAccessor">
+            <summary>
+            Internal accessor providing lazy, engine-owned access to the checkpoint watermark
+            system table, and helpers for reading/writing a single table's watermark row.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.IWatermarkAccessor.WatermarkTable">
+            <summary>
+            Gets the checkpoint watermark table operations instance, resolved lazily on first access.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.IWatermarkAccessor.GetLastFlushedSequence(System.String)">
+            <summary>
+            Gets the last-flushed WAL sequence number recorded for the named table, or -1 if
+            no checkpoint has ever been recorded for it (i.e. first run).
+            </summary>
+            <param name="tableName">Name of the user table to look up.</param>
+        </member>
+        <member name="M:SimpleDB.IWatermarkAccessor.SetLastFlushedSequence(System.String,System.Int64)">
+            <summary>
+            Records a new checkpoint watermark for the named table, inserting or updating the
+            row as required. Always uses the plain, non-transactional Insert/Update overloads -
+            this table must never generate WAL entries for its own writes.
+            </summary>
+            <param name="tableName">Name of the user table the checkpoint applies to.</param>
+            <param name="lastFlushedSequence">Highest WAL SequenceNumber reflected on disk after the checkpoint.</param>
         </member>
         <member name="T:SimpleDB.Internal.IndexManager`1">
             <summary>
@@ -980,6 +1753,190 @@
             
             Another potential saving if more than 20 records would be to change to a binary search
             </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.ITransactionMaintenance">
+            <summary>
+            Internal, engine-only extension of <see cref="T:SimpleDB.ITransactionManager"/> exposing the
+            housekeeping operations that back backup/restore. These are deliberately not part of the
+            public <see cref="T:SimpleDB.ITransactionManager"/> contract, as they are only meaningful to
+            <see cref="T:SimpleDB.Internal.SimpleDBManager"/> while it coordinates a database wide snapshot.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.ITransactionMaintenance.ForceCloseActiveTransactions">
+            <summary>
+            Rolls back every currently active transaction.
+            </summary>
+            <returns>The number of transactions that were rolled back.</returns>
+        </member>
+        <member name="M:SimpleDB.Internal.ITransactionMaintenance.ResetTransactionSequence">
+            <summary>
+            Resets the transaction id sequence back to zero.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.ITransactionManagerAttachable">
+            <summary>
+            Implemented by <see cref="T:SimpleDB.Internal.SimpleDBManager"/> so that <see cref="T:SimpleDB.Internal.TransactionManager"/> can
+            attach itself back after construction, without either singleton needing to depend on the
+            other's concrete type. This avoids a circular constructor dependency between the two
+            while keeping the attach step free of the housekeeping interface's public contract.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.ITransactionManagerAttachable.AttachTransactionManager(SimpleDB.Internal.ITransactionMaintenance)">
+            <summary>
+            Attaches the transaction manager instance so its maintenance operations can be
+            invoked during backup/restore.
+            </summary>
+            <param name="transactionManager">The transaction manager to attach.</param>
+        </member>
+        <member name="T:SimpleDB.Internal.NullWalRecorder">
+            <summary>
+            No-op recorder used for system tables that do not participate in the WAL (e.g. the
+            WAL table itself), preventing WAL entries being generated for their own writes.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.SimpleDBConfiguration">
+            <summary>
+            Process wide tuning values, taken once from <see cref="T:SimpleDB.SimpleDBSettings"/> at startup and
+            read directly by the internals that need them.
+            </summary>
+            <remarks>
+            <para>
+            This exists because the lock timeouts and the checkpoint threshold are needed by types that
+            are not resolved from the container - index managers and foreign key managers are created by
+            the tables that own them, several layers below where <see cref="T:SimpleDB.SimpleDBSettings"/> is
+            available. Threading settings down through those layers is pure plumbing that carries no
+            domain meaning, and it cannot work at all for the
+            <see cref="M:SimpleDB.Internal.SimpleDBManager.#ctor(System.String,System.String,SimpleDB.SimpleDBSettings)"/> constructors, which are handed a path and key
+            with no settings object in sight.
+            </para>
+            <para>
+            Static mutable state is only safe here because of a strict invariant: the values are written
+            exactly once, during <see cref="T:SimpleDB.Internal.SimpleDBManager"/> construction, and are immutable
+            afterwards. <see cref="M:SimpleDB.Internal.SimpleDBConfiguration.Configure(SimpleDB.SimpleDBSettings)"/> throws on a second, differing call
+            rather than silently reconfiguring a running database. Consumers therefore read at the point
+            of use rather than capturing at construction, which removes any dependency on the order in
+            which the container happens to build things.
+            </para>
+            <para>
+            Deliberately excluded are <see cref="P:SimpleDB.SimpleDBSettings.Path"/> and
+            <see cref="P:SimpleDB.SimpleDBSettings.EnycryptionKey"/>. Those identify a particular database, and
+            nothing prevents two managers over different directories in one process. Only genuinely
+            process wide tuning knobs belong here.
+            </para>
+            </remarks>
+        </member>
+        <member name="F:SimpleDB.Internal.SimpleDBConfiguration.MinimumTimeoutMs">
+            <summary>
+            Smallest permitted timeout. A zero or near zero timeout would turn ordinary contention
+            into spurious failures, so a supplied value below this is rejected outright.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.Internal.SimpleDBConfiguration.MaximumTimeoutMs">
+            <summary>
+            Largest permitted timeout. Anything beyond this is indistinguishable from a hang and is
+            far more likely to be a units mistake (seconds supplied where milliseconds were meant).
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.ClearMemoryLockTimeout">
+            <summary>
+            Timeout for acquiring the table lock in order to release cached records from memory.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.CheckpointLockTimeout">
+            <summary>
+            Timeout for acquiring the database lock in order to run a checkpoint. Short, because a
+            checkpoint is optional and is cheaper to abandon than to stall real work for.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.OperationLockTimeout">
+            <summary>
+            Timeout for acquiring the database lock for ordinary work. Generous, because the only
+            long held section is a checkpoint flushing already in memory tables to disk.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.IndexManagerLockTimeout">
+            <summary>
+            Timeout for acquiring an index manager's lock.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.ForeignKeyManagerLockTimeout">
+            <summary>
+            Timeout for acquiring the foreign key manager's lock.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.WalCheckpointThreshold">
+            <summary>
+            Number of WAL entries that must accumulate before a database wide checkpoint is
+            attempted.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.IsConfigured">
+            <summary>
+            Indicates whether <see cref="M:SimpleDB.Internal.SimpleDBConfiguration.Configure(SimpleDB.SimpleDBSettings)"/> has been called. Built in
+            defaults are in force until it has.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBConfiguration.Configure(SimpleDB.SimpleDBSettings)">
+            <summary>
+            Applies application supplied settings. Called once, from <see cref="T:SimpleDB.Internal.SimpleDBManager"/>
+            construction.
+            </summary>
+            <param name="settings">Settings to apply.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="settings"/> is null.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown if a value is outside the permitted range.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown if already configured with different values.</exception>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBConfiguration.Reset">
+            <summary>
+            Restores the built in defaults. Exists so that tests which exercise different settings
+            do not leak values into one another; it is not part of the supported API.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.SimpleDBConfiguration.Snapshot">
+            <summary>
+            Immutable set of tuning values. A single readonly struct means a consumer always sees a
+            coherent set rather than a mixture from two different configurations.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBConfiguration.Snapshot.Default">
+            <summary>
+            Built in defaults, matching the property initialisers on <see cref="T:SimpleDB.SimpleDBSettings"/>.
+            In force until an application configures otherwise.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBManager.TransactionManager">
+            <summary>
+            Backing reference used to coordinate checkpoint/transaction close/sequence reset for
+            backup and restore. Set by <see cref="P:SimpleDB.Internal.SimpleDBManager.TransactionManager"/>'s constructor to avoid a
+            circular constructor dependency between the two singletons.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBManager.PrepareForSnapshot(System.Boolean)">
+            <summary>
+            Ensures the database is quiescent before a backup or restore snapshot is taken: no
+            transaction is in flight and the WAL is empty, its contents already reflected in every
+            table file.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBManager.ReportProgress(System.Action{SimpleDB.BackupProgressEventArgs},SimpleDB.BackupProgressStage,System.String,System.Int32,System.Int32,System.Nullable{System.Int32},System.String)">
+            <summary>
+            Invokes a backup/restore progress callback, swallowing any exception the caller's
+            handler throws so a misbehaving UI callback can never abort the operation itself.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBManager.ReadFileAllowingConcurrentWriter(System.String)">
+            <summary>
+            Reads a table file's full contents while the live session may still hold it open.
+            </summary>
+            <remarks>
+            Table files are opened with <c>FileAccess.ReadWrite, FileShare.Read</c>. Windows file
+            sharing checks are symmetric: it is not enough for this read to request only
+            <see cref="F:System.IO.FileShare.Read"/> - since the existing handle already holds Write access,
+            this handle must also request <see cref="F:System.IO.FileShare.Write"/> (i.e. ReadWrite share), or
+            the open fails with a sharing violation even though this handle itself only reads.
+            <see cref="M:System.IO.File.ReadAllBytes(System.String)"/> defaults to <see cref="F:System.IO.FileShare.Read"/> and
+            so cannot be used here.
+            </remarks>
         </member>
         <member name="T:SimpleDB.Internal.SimpleDBOperations`1">
             <summary>
@@ -1001,6 +1958,384 @@
             Data		version specific						53
             </summary>
             <typeparam name="T"></typeparam>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBOperations`1.LogicalDataSizeBytes">
+            <summary>
+            Total logical size (uncompressed) of the data held by the table, in bytes
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBOperations`1.PhysicalDataSizeBytes">
+            <summary>
+            Total physical size (on-disk / stored) of the data held by the table, in bytes
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.SimpleDBOperations`1.InMemoryCacheSizeBytes">
+            <summary>
+            Size in bytes of the records currently held in the in-memory cache (if any)
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.RefreshPhysicalDataLength">
+            <summary>
+            Reads the physical/stored data length from the table header. Called after every read
+            and write of the record set so that PhysicalDataSizeBytes can be answered without any
+            file I/O.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.ComputeInMemoryCacheSize(System.Collections.Generic.List{`0})">
+            <summary>
+            Computes the total serialized (UTF-8 JSON) byte size of the supplied records, used to
+            keep InMemoryCacheSizeBytes current whenever the in-memory record set changes.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.InternalRepairTornRecords(System.Collections.Generic.List{`0})">
+            <summary>
+            Rewrites the file so the header and the body agree again after a torn write has been
+            detected on load.
+            </summary>
+            <remarks>
+            Only writers that can shrink a file can perform this repair. The versioned writers
+            rewrite the whole file on every save and so cannot produce a torn tail in the first
+            place, meaning the absence of a compacting writer here is not an error - there is simply
+            nothing to fix.
+            </remarks>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.InternalCheckpoint">
+            <summary>
+            Flushes the in-memory record set to the table file. Deliberately does not open a
+            transaction - a checkpoint generates no WAL entries, and taking a transaction here would
+            couple flushing (including the final flush performed during Dispose) to the WAL table,
+            which may already have been disposed by the container, silently losing the checkpoint.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.InternalRewriteRecordsToDisk(System.Collections.Generic.List{`0})">
+            <summary>
+            Rewrites the table file from scratch so that records removed from the set actually
+            release their disk space. The versioned writers already rewrite the whole file on every
+            save, but the append only writer can only add to the tail, so it needs an explicit
+            rewrite - without it the header record count would shrink while the obsolete bytes
+            stayed on disk and the reader would return the oldest records rather than the survivors.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.TableParticipatesInWal">
+            <summary>
+            Ordinary user tables (no [SystemTable]) always participate in WAL. System tables only
+            participate if explicitly opted in via ParticipatesInWal, e.g. a future audit/config
+            system table - never the WAL table itself.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.InternalApplyUndo(System.Collections.Generic.List{`0})">
+            <summary>
+            Persists the record set produced by an undo operation. Deliberately does not record
+            WAL entries or fire triggers - the state being restored was previously produced by
+            this table and the transaction that produced it is being discarded.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.SimpleDBOperations`1.PerformStartupRecovery">
+            <summary>
+            Replays any committed WAL entries for this table that have not yet been reflected in
+            the on-disk table file, then performs a single checkpoint flush and watermark update.
+            Skipped for system tables (e.g. the WAL table and the watermark table itself) to avoid
+            recursively resolving those tables while they are still being constructed.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.CheckpointWatermarkDataRow.TableName">
+            <summary>
+            Name of the user table this watermark belongs to.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.CheckpointWatermarkDataRow.LastFlushedSequence">
+            <summary>
+            Highest WAL entry SequenceNumber for this table that has been flushed to disk as
+            part of a checkpoint. WAL entries with a SequenceNumber greater than this value
+            must be replayed at startup to reconstruct a consistent in-memory record set.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.CheckpointWatermarkDataRow.CheckpointTimestampTicks">
+            <summary>
+            Ticks (UTC) recording when the checkpoint that produced LastFlushedSequence completed.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.Tables.TransactionSequenceDataRow">
+            <summary>
+            On-disk row representation of a single named, engine-owned sequence.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.Internal.Tables.WalEntryDataRow">
+            <summary>
+            On-disk row representation of a write-ahead log entry, persisted to the internal system
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.TransactionId">
+            <summary>
+            Id of the transaction this entry belongs to.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.TableName">
+            <summary>
+            Name of the table the operation was performed against.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.Operation">
+            <summary>
+            Type of DML operation performed (Insert/Update/Delete).
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.RecordId">
+            <summary>
+            Id of the record the operation was performed against.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.SerializedRecord">
+            <summary>
+            Serialized bytes of the record, using the same serialization as the source table.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.SequenceNumber">
+            <summary>
+            Monotonically increasing sequence number, used to order entries across tables
+            within a transaction.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.ExpectedUpdatedTicks">
+            <summary>
+            The record's UpdatedTicks value as it was known when the operation was performed,
+            used for optimistic concurrency checking at commit time. -1 for Insert operations.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.Tables.WalEntryDataRow.UndoRecord">
+            <summary>
+            Serialized bytes of the record as it existed BEFORE the operation was applied, used
+            to reverse it. Null for Insert (nothing existed beforehand) and for
+            <see cref="F:SimpleDB.OperationType.Commit"/> markers.
+            </summary>
+            <remarks>
+            Writes are applied eagerly to a table's in memory record set before the owning
+            transaction commits, so a crash mid transaction can leave them on disk. Persisting
+            the before-image is what allows recovery to undo that work - without it the undo
+            path can only repair memory, which is lost by the crash anyway.
+            </remarks>
+        </member>
+        <member name="P:SimpleDB.Internal.Transaction.IsInternalTransaction">
+            <summary>
+            True when this transaction was begun by the checkpoint's own watermark bookkeeping
+            rather than by user code. Such transactions are excluded from the active transaction
+            count, so a checkpoint does not observe its own nested writes as in flight work and
+            abort itself via the checkpoint barrier.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.Transaction.ReleaseDatabaseLock">
+            <summary>
+            Released by the transaction manager once the transaction has been committed or rolled
+            back. Idempotent, so an abandoned transaction cannot release the lock twice.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.WalCheckpointThreshold">
+            <summary>
+            Number of WAL entries that must accumulate before a database wide checkpoint is
+            attempted. Read at the point of use from the database wide settings applied at startup.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.Internal.TransactionManager.NeverFlushedSequence">
+            <summary>
+            Watermark value meaning "this table has never been checkpointed", matching the value
+            <see cref="M:SimpleDB.IWatermarkAccessor.GetLastFlushedSequence(System.String)"/> returns when no row exists.
+            </summary>
+        </member>
+        <member name="F:SimpleDB.Internal.TransactionManager._performingCheckpoint">
+             <summary>
+             Set for the duration of a checkpoint, on the thread performing it. A checkpoint writes
+             watermark rows through the plain, non transactional overloads, but those still begin
+             and commit a transaction internally. That nested work is bookkeeping rather than user
+             work and must not be seen by the checkpoint barrier, otherwise every checkpoint would
+             observe its own watermark write as an in flight transaction and abort itself.
+            
+             Thread static rather than a plain field, so that a genuine user transaction beginning
+             on a different thread while a checkpoint runs is still counted by the barrier.
+             </summary>
+        </member>
+        <member name="F:SimpleDB.Internal.TransactionManager.TransactionIdSequenceName">
+            <summary>
+            Name of the independent, engine-owned sequence used for transaction ids. Deliberately
+            separate from the WAL table's own PrimarySequence/SecondarySequence, which must remain
+            solely responsible for WAL entry ordering and must never be reset or reused.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.InternalActiveTransactionCount">
+             <summary>
+             Number of user transactions that have been started but not yet committed or rolled
+             back. Transactions begun by the checkpoint itself are excluded, see
+             <see cref="F:SimpleDB.Internal.TransactionManager._performingCheckpoint"/>.
+            
+             This is the checkpoint barrier: <see cref="M:SimpleDB.Internal.TransactionManager.InternalCheckpointDatabase(System.Boolean)"/> refuses to
+             flush any table while this is non zero. Uncommitted rows are applied eagerly to a
+             table's in memory record set, so flushing mid transaction would steal them to disk,
+             and the undo path could then only repair memory.
+             </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.InternalCheckpointsSkippedForActiveTransactions">
+            <summary>
+            Number of checkpoints abandoned because a transaction was in flight. A long lived
+            transaction blocks checkpointing for its whole lifetime, which lets the WAL grow
+            without bound - a steadily climbing value here is the symptom of that.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.CheckpointsCompleted">
+            <summary>
+            Number of checkpoints that have successfully run to completion.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.ActiveTransactionCount">
+            <inheritdoc/>
+        </member>
+        <member name="P:SimpleDB.Internal.TransactionManager.GetAllTimings">
+            <inheritdoc/>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.InternalCheckpointDatabase(System.Boolean)">
+             <summary>
+             Flushes every registered table to disk under the database lock, so no other thread can
+             mutate a table midway through being written. The WAL table is skipped because it is
+             already force written at commit time and is itself the record used to recover the
+             other tables.
+            
+             A single global WAL sequence snapshot is captured before any table is flushed, and is
+             stamped onto a table only once that table's flush has succeeded. Capturing first is
+             what makes the snapshot safe - any entry logged after it is simply replayed next time -
+             whereas stamping a table that failed to flush would discard the very entries needed to
+             recover it.
+            
+             If the lock cannot be obtained promptly the checkpoint is abandoned rather than
+             stalling live work; the WAL remains over threshold so the next commit retries.
+            
+             A checkpoint never runs while a user transaction is in flight. Transactional writes are
+             applied eagerly to a table's in memory record set, so flushing mid transaction would
+             steal uncommitted rows to disk where the in memory undo path cannot reach them. The
+             database lock alone does NOT provide this guarantee - it is reentrant, so a nested
+             transaction committing on the thread that already owns it would otherwise checkpoint
+             straight through its own parent's uncommitted work.
+             </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.IsTransactionInFlight">
+            <summary>
+            The checkpoint barrier test. Returns true, and records the skip, when a user
+            transaction is in flight and the checkpoint must therefore be abandoned.
+            </summary>
+            <remarks>
+            Skipping is always safe: the WAL stays over threshold, so the next commit that finds
+            no transaction in flight retries. It is not free though - until then the WAL keeps
+            growing, which is why the skip is counted rather than silently swallowed.
+            </remarks>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.SeedWatermark(System.String)">
+            <summary>
+            Ensures a watermark row exists for the named table before the minimum watermark is
+            calculated. A table that has never been checkpointed reports -1, which is exactly the
+            value seeded, so this neither advances nor rewinds any real watermark.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.InternalTruncateWal(System.Collections.Generic.List{System.String})">
+             <summary>
+             Discards WAL entries that every participating table has already flushed to its own
+             file, then compacts the log so the space is actually reclaimed.
+            
+             The safe cut off is the MINIMUM watermark across all participants, not the maximum: an
+             entry may only be discarded once the slowest table has it on disk. A participant that
+             has never flushed reports -1, which correctly suppresses truncation entirely.
+            
+             The cut off is additionally bounded by the oldest unresolved transaction. Entries are
+             logged as each operation happens, so the log can contain work for a transaction that
+             has neither committed nor aborted; discarding those entries would strip away the
+             before-images recovery needs to reverse it.
+             </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.OldestUnresolvedSequence">
+            <summary>
+            Lowest SequenceNumber belonging to a transaction that has neither a Commit nor an
+            Abort marker, or <see cref="F:SimpleDB.Internal.TransactionManager.NeverFlushedSequence"/> when every transaction in the log
+            has reached a decided outcome.
+            </summary>
+            <remarks>
+            An unresolved transaction is either still running or was interrupted by a crash. In
+            both cases its entries, and crucially their before-images, must survive truncation so
+            that recovery can reverse the work. This is also why a rollback writes an explicit
+            Abort marker - without one, every rolled back transaction would pin the log for ever.
+            </remarks>
+        </member>
+        <member name="T:SimpleDB.Internal.WalEntry">
+            <summary>
+            A single write-ahead log entry describing a DML operation performed against a table
+            within the context of a transaction.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.TransactionId">
+            <summary>
+            Id of the transaction this entry belongs to.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.TableName">
+            <summary>
+            Name of the table the operation was performed against.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.Operation">
+            <summary>
+            Type of DML operation performed (Insert/Update/Delete).
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.RecordId">
+            <summary>
+            Id of the record the operation was performed against.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.SerializedRecord">
+            <summary>
+            Serialized bytes of the record, using the same serialization as the source table.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.SequenceNumber">
+            <summary>
+            Monotonically increasing sequence number, used to order entries across tables
+            within a transaction.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.ExpectedUpdatedTicks">
+            <summary>
+            The record's UpdatedTicks value as it was known when the operation was performed,
+            used for optimistic concurrency checking at commit time. -1 for Insert operations,
+            since there is no pre-existing record to compare against.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.Internal.WalEntry.UndoRecord">
+            <summary>
+            Serialized bytes of the record as it existed *before* the operation was performed,
+            used to undo the operation. Null for Insert (undoing an insert simply removes the
+            record).
+            </summary>
+            <remarks>
+            This IS persisted to the WAL table alongside the entry. Operations are applied to the
+            table's record set immediately, so uncommitted work can reach disk before the
+            transaction ends; the before-image is what allows recovery to reverse it after a
+            crash, when the in-memory copy no longer exists.
+            </remarks>
+        </member>
+        <member name="T:SimpleDB.Internal.WalRecorder">
+             <summary>
+             Default recorder: persists the entry to the WAL table immediately, and retains it on the
+             transaction's in-memory log so a rollback can reverse it.
+             </summary>
+             <remarks>
+             The immediate persist is what makes the write-ahead rule hold. Callers apply the mutation
+             to the table's record set as soon as Record returns, and a WriteStrategy.Forced table
+             flushes that straight to its file - so if the log entry were only written at commit time,
+             a crash mid transaction would leave data on disk with no log record describing how to
+             reverse it. The WAL table is itself WriteStrategy.Forced, so the Insert below is durable
+             before this method returns.
+            
+             The in-memory copy is still required: it carries the UndoRecord used by an ordinary
+             (non-crash) rollback, and avoids re-reading the log to unwind a transaction.
+             </remarks>
+        </member>
+        <member name="P:SimpleDB.Internal.WalRecorder.GetAllTimings">
+            <inheritdoc/>
         </member>
         <member name="T:SimpleDB.ObservableDictionary`2">
             <summary>
@@ -1175,6 +2510,32 @@
             </summary>
             <param name="services"></param>
         </member>
+        <member name="M:SimpleDB.Readers.AppendOnlyDataReader.ReadRecords``1(System.IO.FileStream,System.Int32@,System.Int32@,System.Int32@)">
+             <summary>
+             Reads the records physically present in the file, which may be fewer than the header
+             advertises.
+             </summary>
+             <remarks>
+             The header record count is treated as an upper bound rather than a guarantee. Unlike the
+             paged writers, which emit the header and the body in a single forward pass,
+             <see cref="M:SimpleDB.Writers.AppendOnlyDataWriter.RewriteData``1(System.IO.FileStream,System.Collections.Generic.List{``0},SimpleDB.CompressionType,SimpleDB.PageSize,System.Byte@,System.Int32@)"/> truncates the file to the header
+             BEFORE rewriting the survivors and only fixes the header up afterwards. A process that
+             dies inside that window leaves a header describing a body that no longer exists.
+            
+             Reading such a file must not throw. The records are appended in sequence order, so the
+             survivors are contiguous from the start of the data area: everything before the tear is
+             intact and everything after it is unrecoverable regardless. Stopping cleanly at the last
+             complete record therefore recovers the maximum that can be recovered. Throwing instead
+             would prevent the table from being constructed at all, which for the WAL means the whole
+             database fails to open - including tables whose own files are perfectly intact.
+            
+             <paramref name="recordCount"/> is set to the number of records actually read, so the
+             caller can compare it against the header and repair the file. That matters because
+             <see cref="M:SimpleDB.Writers.AppendOnlyDataWriter.WriteData``1(System.IO.FileStream,System.Collections.Generic.List{``0},SimpleDB.CompressionType,SimpleDB.PageSize,System.Byte@,System.Int32@)"/> re-reads the record count directly
+             from the header to decide where to append; left uncorrected, it would skip the slots the
+             missing records occupied and silently diverge from the data.
+             </remarks>
+        </member>
         <member name="P:SimpleDB.Readers.TableReadVersionOne.Version">
             	this part repeats for all pages					53
             int			page number
@@ -1182,6 +2543,55 @@
             ushort		page version
             int			Page n Datastart
             long		Next page start
+        </member>
+        <member name="T:SimpleDB.RestoreOptions">
+            <summary>
+            Options controlling how <see cref="M:SimpleDB.ISimpleDBManager.RestoreDatabase(System.String,SimpleDB.RestoreOptions)"/> behaves.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreOptions.ForceCloseTransactions">
+            <summary>
+            When true, any active transactions are rolled back before the restore begins. When
+            false and a transaction is active, <see cref="M:SimpleDB.ISimpleDBManager.RestoreDatabase(System.String,SimpleDB.RestoreOptions)"/>
+            throws an <see cref="T:System.InvalidOperationException"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreOptions.CreateSafetyBackup">
+            <summary>
+            When true (the default), a safety backup of the current, live database is taken before
+            any file is overwritten, so a failed or unwanted restore can be undone.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreOptions.ProgressCallback">
+            <summary>
+            Optional callback invoked as the restore progresses, so a UI or console can display
+            which stage/file is currently being processed and an approximate completion
+            percentage. May be called from the calling thread; implementations should be quick and
+            must not throw.
+            </summary>
+        </member>
+        <member name="T:SimpleDB.RestoreResult">
+            <summary>
+            Outcome of a call to <see cref="M:SimpleDB.ISimpleDBManager.RestoreDatabase(System.String,SimpleDB.RestoreOptions)"/>.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreResult.FileCount">
+            <summary>
+            Number of files restored from the backup.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreResult.SafetyBackupFilePath">
+            <summary>
+            Full path to the safety backup taken before the restore, or null if
+            <see cref="P:SimpleDB.RestoreOptions.CreateSafetyBackup"/> was false.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.RestoreResult.Warnings">
+            <summary>
+            Non fatal issues encountered while restoring, e.g. a table present in the backup that
+            is no longer registered, or a currently registered table that was absent from the
+            backup.
+            </summary>
         </member>
         <member name="T:SimpleDB.SimpleDBHelper">
             <summary>
@@ -1218,6 +2628,41 @@
         <member name="P:SimpleDB.SimpleDBSettings.EnycryptionKey">
             <summary>
             Encryption key used to encrypt data in tables
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.LockTimeoutClearMemoryMs">
+            <summary>
+            Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception, 
+            this is used when clearing the memory cache for tables that are not being used and have not been accessed for a period of time.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.LockTimeoutCheckpointMs">
+            <summary>
+            Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+            this is used when performing a checkpoint operation.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.LockTimeoutOperationMs">
+            <summary>
+            Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+            this is used when performing a database operation.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.LockTimeoutIndexManagerMs">
+            <summary>
+            Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+            this is used when performing an index manager operation.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.LockTimeoutForeignKeyManagerMs">
+            <summary>
+            Timeout in milliseconds to wait for a lock on the database to be released before throwing an exception,
+            this is used when performing a foreign key manager operation.
+            </summary>
+        </member>
+        <member name="P:SimpleDB.SimpleDBSettings.WalCheckpointThreshold">
+            <summary>
+            Number of WAL entries that must accumulate before a database wide checkpoint is attempted.
             </summary>
         </member>
         <member name="T:SimpleDB.TableRowDefinition">
@@ -1291,6 +2736,15 @@
             </summary>
             <param name="sender"></param>
             <param name="e"></param>
+        </member>
+        <member name="M:SimpleDB.Writers.AppendOnlyDataWriter.RewriteData``1(System.IO.FileStream,System.Collections.Generic.List{``0},SimpleDB.CompressionType,SimpleDB.PageSize,System.Byte@,System.Int32@)">
+            <summary>
+            Discards the existing contents and writes the supplied records from the start of the
+            data area. WriteData cannot be used for this: it only ever appends records beyond the
+            count already on disk, so a shrinking set would leave the obsolete bytes in place while
+            the header claimed a smaller count - the reader would then return the OLDEST records
+            rather than the survivors.
+            </summary>
         </member>
     </members>
 </doc>

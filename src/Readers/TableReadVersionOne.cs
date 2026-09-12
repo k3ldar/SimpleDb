@@ -23,88 +23,89 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Abstractions;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Readers
 {
-	internal sealed class TableReadVersionOne : IDataReader
-	{
-		///		this part repeats for all pages					53
-		/// int			page number
-		/// byte		page type
-		/// ushort		page version
-		/// int			Page n Datastart
-		/// long		Next page start
+    [ExcludeFromCodeCoverage(Justification = "Unused internal class, required for backwards compatibility only")]
+    internal sealed class TableReadVersionOne : IDataReader
+    {
+        ///		this part repeats for all pages					53
+        /// int			page number
+        /// byte		page type
+        /// ushort		page version
+        /// int			Page n Datastart
+        /// long		Next page start
 
-		public ushort Version => 1;
+        public ushort Version => 1;
 
-		public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
-		{
-			using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
-			fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
-			CompressionType compressionType = (CompressionType)reader.ReadByte();
-			recordCount = reader.ReadInt32();
-			int uncompressedSize = reader.ReadInt32();
-			dataLength = reader.ReadInt32();
+        public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
+        {
+            using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
+            fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            CompressionType compressionType = (CompressionType)reader.ReadByte();
+            recordCount = reader.ReadInt32();
+            int uncompressedSize = reader.ReadInt32();
+            dataLength = reader.ReadInt32();
 
-			if (dataLength == 0)
-				return [];
+            if (dataLength == 0)
+                return [];
 
-			Span<byte> data = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new Byte[dataLength];
+            Span<byte> data = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new Byte[dataLength];
 
-			int totalPageCount = reader.ReadInt32();
+            int totalPageCount = reader.ReadInt32();
 
-			if (totalPageCount != pageCount)
-				throw new InvalidOperationException("Invalid page count");
+            if (totalPageCount != pageCount)
+                throw new InvalidOperationException("Invalid page count");
 
-			int bytePosition = 0;
+            int bytePosition = 0;
 
-			for (int i = 0; i < pageCount; i++)
-			{
-				int pageNumber = reader.ReadInt32();
-				byte pageType = reader.ReadByte();
-				_ = reader.ReadUInt16();
+            for (int i = 0; i < pageCount; i++)
+            {
+                int pageNumber = reader.ReadInt32();
+                byte pageType = reader.ReadByte();
+                _ = reader.ReadUInt16();
 
-				if (pageNumber != 1 + i)
-					throw new InvalidOperationException("Invalid page number");
+                if (pageNumber != 1 + i)
+                    throw new InvalidOperationException("Invalid page number");
 
-				if (pageType == Consts.PageTypeData)
-				{
-					_ = reader.ReadInt64();
-					int sizeinPage = reader.ReadInt32();
+                if (pageType == Consts.PageTypeData)
+                {
+                    _ = reader.ReadInt64();
+                    int sizeinPage = reader.ReadInt32();
 
-					Span<byte> pageData = reader.ReadBytes(sizeinPage);
+                    Span<byte> pageData = reader.ReadBytes(sizeinPage);
 
-					for (int j = 0; j < sizeinPage; j++)
-					{
-						data[bytePosition++] = pageData[j];
-					}
-				}
-			}
+                    for (int j = 0; j < sizeinPage; j++)
+                    {
+                        data[bytePosition++] = pageData[j];
+                    }
+                }
+            }
 
-			List<T> Result;
+            List<T> Result;
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> uncompressed = uncompressedSize < Consts.MaxStackAllocSize ? stackalloc byte[uncompressedSize] : new byte[uncompressedSize];
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> uncompressed = uncompressedSize < Consts.MaxStackAllocSize ? stackalloc byte[uncompressedSize] : new byte[uncompressedSize];
 
-				System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int byteLength);
+                System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int byteLength);
 
-				if (byteLength != uncompressedSize)
-					throw new InvalidDataException();
+                if (byteLength != uncompressedSize)
+                    throw new InvalidDataException();
 
-				Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
-			}
-			else
-			{
-				Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
-			}
+                Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
+            }
+            else
+            {
+                Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
+            }
 
-			return Result;
-		}
-	}
+            return Result;
+        }
+    }
 }

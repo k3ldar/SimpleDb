@@ -26,57 +26,56 @@
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Abstractions;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Readers
 {
-	internal class TableReadVersionThree : IDataReader
-	{
-		public ushort Version => 3;
+    internal class TableReadVersionThree : IDataReader
+    {
+        public ushort Version => 3;
 
-		public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
-		{
-			using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
-			fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
-			CompressionType compressionType = (CompressionType)reader.ReadByte();
-			pageCount = -1;
-			recordCount = reader.ReadInt32();
-			int compressedLength = reader.ReadInt32();
-			dataLength = reader.ReadInt32();
+        public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
+        {
+            using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
+            fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            CompressionType compressionType = (CompressionType)reader.ReadByte();
+            pageCount = -1;
+            recordCount = reader.ReadInt32();
+            int compressedLength = reader.ReadInt32();
+            dataLength = reader.ReadInt32();
 
-			if (dataLength == 0)
-				return [];
+            if (dataLength == 0)
+                return [];
 
-			Span<byte> data = reader.ReadBytes(compressedLength);
+            Span<byte> data = reader.ReadBytes(compressedLength);
 
-			List<T> Result;
+            List<T> Result;
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> uncompressed = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new byte[dataLength];
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> uncompressed = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new byte[dataLength];
 
-				if (System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int decompressedLength))
-				{
-					if (decompressedLength != dataLength)
-						throw new InvalidDataException();
+                if (System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int decompressedLength))
+                {
+                    if (decompressedLength != dataLength)
+                        throw new InvalidDataException();
 
-					Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
-				}
-				else
-				{
-					if (uncompressed.Length != dataLength)
-						throw new InvalidDataException();
+                    Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
+                }
+                else
+                {
+                    if (uncompressed.Length != dataLength)
+                        throw new InvalidDataException();
 
-					Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
-				}
-			}
-			else
-			{
-				Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
-			}
+                    Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
+                }
+            }
+            else
+            {
+                Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
+            }
 
-			return Result;
-		}
-	}
+            return Result;
+        }
+    }
 }

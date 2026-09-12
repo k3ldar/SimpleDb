@@ -24,12 +24,12 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-namespace SimpleDB.Abstractions
+namespace SimpleDB
 {
-	internal interface IDataReader
-	{
-		List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength);
+    internal interface IDataReader
+    {
+        List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength);
 
-		ushort Version { get; }
-	}
+        ushort Version { get; }
+    }
 }

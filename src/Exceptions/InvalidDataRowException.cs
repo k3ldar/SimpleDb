@@ -26,49 +26,49 @@
 
 namespace SimpleDB
 {
-	/// <summary>
-	/// Invalid data row exception which is raised when data is invalid
-	/// </summary>
-	[Serializable]
-	public sealed class InvalidDataRowException : Exception
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="dataRow">Data row name</param>
-		/// <param name="property">Property/column which violates the rule</param>
-		/// <param name="message">Exception message</param>
-		/// <exception cref="ArgumentNullException"></exception>
-		public InvalidDataRowException(string dataRow, string property, string message)
-			: base($"{message}; Table: {dataRow}; Property {property}")
-		{
-			if (String.IsNullOrEmpty(dataRow))
-				throw new ArgumentNullException(nameof(dataRow));
+    /// <summary>
+    /// Invalid data row exception which is raised when data is invalid
+    /// </summary>
+    [Serializable]
+    public sealed class InvalidDataRowException : Exception
+    {
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataRow">Data row name</param>
+        /// <param name="property">Property/column which violates the rule</param>
+        /// <param name="message">Exception message</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public InvalidDataRowException(string dataRow, string property, string message)
+            : base($"{message}; Table: {dataRow}; Property {property}")
+        {
+            if (String.IsNullOrEmpty(dataRow))
+                throw new ArgumentNullException(nameof(dataRow));
 
-			if (String.IsNullOrEmpty(property))
-				throw new ArgumentNullException(nameof(property));
+            if (String.IsNullOrEmpty(property))
+                throw new ArgumentNullException(nameof(property));
 
-			if (String.IsNullOrEmpty(message))
-				throw new ArgumentNullException(nameof(message));
+            if (String.IsNullOrEmpty(message))
+                throw new ArgumentNullException(nameof(message));
 
-			DataRow = dataRow;
-			Property = property;
-			OriginalMessage = message;
-		}
+            DataRow = dataRow;
+            Property = property;
+            OriginalMessage = message;
+        }
 
-		/// <summary>
-		/// Data row 
-		/// </summary>
-		public string DataRow { get; }
+        /// <summary>
+        /// Data row 
+        /// </summary>
+        public string DataRow { get; }
 
-		/// <summary>
-		/// Property/column name
-		/// </summary>
-		public string Property { get; }
+        /// <summary>
+        /// Property/column name
+        /// </summary>
+        public string Property { get; }
 
-		/// <summary>
-		/// Original error message
-		/// </summary>
-		public string OriginalMessage { get; }
-	}
+        /// <summary>
+        /// Original error message
+        /// </summary>
+        public string OriginalMessage { get; }
+    }
 }

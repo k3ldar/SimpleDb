@@ -28,36 +28,36 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SimpleDB.Tests.Mocks
 {
-	[ExcludeFromCodeCoverage]
-	internal class MockForeignKeyManager : IForeignKeyManager
-	{
-		public List<string> RegisteredTables = [];
+    [ExcludeFromCodeCoverage]
+    internal class MockForeignKeyManager : IForeignKeyManager
+    {
+        public List<string> RegisteredTables = [];
 
-		public void AddRelationShip(string sourceTable, string targetTable, string propertyName, string targetPropertyName, ForeignKeyAttributes foreignKeyAttributes)
-		{
-			throw new NotImplementedException();
-		}
+        public void AddRelationShip(string sourceTable, string targetTable, string propertyName, string targetPropertyName, ForeignKeyAttributes foreignKeyAttributes)
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool ValueExists(string tableName, long id)
-		{
-			throw new NotImplementedException();
-		}
+        public bool ValueExists(string tableName, long id)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void RegisterTable(ISimpleDBTable table)
-		{
-			RegisteredTables.Add(table.TableName);
-		}
+        public void RegisterTable(ISimpleDBTable table)
+        {
+            RegisteredTables.Add(table.TableName);
+        }
 
-		public void UnregisterTable(ISimpleDBTable table)
-		{
-			RegisteredTables.Remove(table.TableName);
-		}
+        public void UnregisterTable(ISimpleDBTable table)
+        {
+            RegisteredTables.Remove(table.TableName);
+        }
 
-		public ForeignKeyUsage ValueInUse(string tableName, string propertyName, long value, out string table, out string property)
-		{
-			table = null;
-			property = null;
-			return ForeignKeyUsage.None;
-		}
-	}
+        public ForeignKeyUsage ValueInUse(string tableName, string propertyName, long value, out string table, out string property)
+        {
+            table = null;
+            property = null;
+            return ForeignKeyUsage.None;
+        }
+    }
 }

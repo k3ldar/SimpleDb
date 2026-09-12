@@ -30,104 +30,101 @@ using PluginManager.Abstractions;
 
 using SharedPluginFeatures;
 
-using System.Linq;
-
 namespace SimpleDB
 {
-	/// <summary>
-	/// Plugin initialization class
-	/// </summary>
-	public class PluginInitialisation : IPlugin, IInitialiseEvents
-	{
-		#region IPlugin Methods
+    /// <summary>
+    /// Plugin initialization class
+    /// </summary>
+    public class PluginInitialisation : IPlugin, IInitialiseEvents
+    {
+        #region IPlugin Methods
 
-		/// <summary>
-		/// Configure services method
-		/// </summary>
-		/// <param name="services"></param>
-		public void ConfigureServices(IServiceCollection services)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Configure services method
+        /// </summary>
+        /// <param name="services"></param>
+        public void ConfigureServices(IServiceCollection services)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Finalise method
-		/// </summary>
-		public void Finalise()
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Finalise method
+        /// </summary>
+        public void Finalise()
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Initialise method
-		/// </summary>
-		/// <param name="logger"></param>
-		public void Initialise(ILogger logger)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Initialise method
+        /// </summary>
+        /// <param name="logger"></param>
+        public void Initialise(ILogger logger)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Retrieve the plugin version
-		/// </summary>
-		/// <returns></returns>
-		public ushort GetVersion()
-		{
-			return 1;
-		}
+        /// <summary>
+        /// Retrieve the plugin version
+        /// </summary>
+        /// <returns></returns>
+        public ushort GetVersion()
+        {
+            return 1;
+        }
 
-		#endregion IPlugin Methods
+        #endregion IPlugin Methods
 
-		#region IInitialiseEvents Methods
+        #region IInitialiseEvents Methods
 
-		/// <summary>
-		/// Method called before configuration of the app
-		/// </summary>
-		/// <param name="app"></param>
-		public void BeforeConfigure(in IApplicationBuilder app)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Method called before configuration of the app
+        /// </summary>
+        /// <param name="app"></param>
+        public void BeforeConfigure(in IApplicationBuilder app)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Method called after the app has been configured
-		/// </summary>
-		/// <param name="app"></param>
-		public void AfterConfigure(in IApplicationBuilder app)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Method called after the app has been configured
+        /// </summary>
+        /// <param name="app"></param>
+        public void AfterConfigure(in IApplicationBuilder app)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Method called when the app is being configured
-		/// </summary>
-		/// <param name="app"></param>
-		public void Configure(in IApplicationBuilder app)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Method called when the app is being configured
+        /// </summary>
+        /// <param name="app"></param>
+        public void Configure(in IApplicationBuilder app)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Method called before services are configured
-		/// </summary>
-		/// <param name="services"></param>
-		public void BeforeConfigureServices(in IServiceCollection services)
-		{
-			// from interface but unused in this context
-		}
+        /// <summary>
+        /// Method called before services are configured
+        /// </summary>
+        /// <param name="services"></param>
+        public void BeforeConfigureServices(in IServiceCollection services)
+        {
+            // from interface but unused in this context
+        }
 
-		/// <summary>
-		/// Method called after services are being configured
-		/// </summary>
-		/// <param name="services"></param>
-		public void AfterConfigureServices(in IServiceCollection services)
-		{
-			// Only register the default file-based backend if no ISimpleDBManager has
-			// already been registered (e.g. by AddSimpleDBSqlServer or a custom backend).
-			if (services != null && !services.Any(sd => sd.ServiceType == typeof(ISimpleDBManager)))
-				services.AddSimpleDB();
-		}
+        /// <summary>
+        /// Method called after services are being configured
+        /// </summary>
+        /// <param name="services"></param>
+        public void AfterConfigureServices(in IServiceCollection services)
+        {
+            // Only register the default file-based backend if no ISimpleDBManager has already been registered.
+            if (services != null && !services.Any(sd => sd.ServiceType == typeof(ISimpleDBManager)))
+                services.AddSimpleDB();
+        }
 
-		#endregion IInitialiseEvents Methods
-	}
+        #endregion IInitialiseEvents Methods
+    }
 }

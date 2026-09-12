@@ -23,56 +23,57 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Interfaces;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Writers
 {
-	internal sealed class TableWriteVersionTwo : IDataWriter
-	{
-		public ushort Version => 2;
+    [ExcludeFromCodeCoverage(Justification = "Unused internal class, required for backwards compatibility only")]
+    internal sealed class TableWriteVersionTwo : IDataWriter
+    {
+        public ushort Version => 2;
 
-		public void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType, PageSize pageSize, ref byte compactPercent, ref int pageCount)
-		{
-			byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
+        public void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType, PageSize pageSize, ref byte compactPercent, ref int pageCount)
+        {
+            byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
 
-			bool isCompressed = false;
+            bool isCompressed = false;
 
-			using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
-			writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
+            writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
-				isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out int dataLength);
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
+                isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out int dataLength);
 
-				if (isCompressed)
-				{
-					compressionType = CompressionType.Brotli;
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(data.Length);
-					writer.Write(compressedData.ToArray(), 0, dataLength);
-					compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
-				}
-				else
-				{
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(data.Length);
-					writer.Write(data, 0, data.Length);
-				}
-			}
-			else
-			{
-				writer.Write((byte)compressionType);
-				writer.Write(recordsToSave.Count);
-				writer.Write(data.Length);
-				writer.Write(data, 0, data.Length);
-			}
-		}
-	}
+                if (isCompressed)
+                {
+                    compressionType = CompressionType.Brotli;
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(data.Length);
+                    writer.Write(compressedData.ToArray(), 0, dataLength);
+                    compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
+                }
+                else
+                {
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(data.Length);
+                    writer.Write(data, 0, data.Length);
+                }
+            }
+            else
+            {
+                writer.Write((byte)compressionType);
+                writer.Write(recordsToSave.Count);
+                writer.Write(data.Length);
+                writer.Write(data, 0, data.Length);
+            }
+        }
+    }
 }

@@ -29,38 +29,40 @@ using System.Text.Json;
 
 namespace SimpleDB.Internal
 {
-	internal static class Consts
-	{
-		public static readonly JsonSerializerOptions JsonSerializerOptions = new()
-		{
-			AllowTrailingCommas = false,
-			IncludeFields = true,
-		};
+    internal static class Consts
+    {
+        public static readonly JsonSerializerOptions JsonSerializerOptions = new()
+        {
+            AllowTrailingCommas = false,
+            IncludeFields = true,
+        };
 
-		public static readonly byte[] Header = [80, 77];
-		public const string DefaultExtension = ".dat";
-		public const byte CompressionNone = 0;
-		public const byte CompressionBrotli = 1;
-		public const int RowCountZero = 0;
-		public const int DefaultLength = 0;
-		public const int TotalHeaderLength = sizeof(ushort) + HeaderLength + sizeof(long) + sizeof(long) + (sizeof(int) * 4) + sizeof(byte) + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
-		public const int PrimarySequenceStart = HeaderLength + sizeof(ushort);
-		public const int SecondarySequenceStart = PrimarySequenceStart + sizeof(long);
-		public const int WriteVersionStart = SecondarySequenceStart + sizeof(long);
-		public const int PageHeaderSize = sizeof(int) + sizeof(byte) + sizeof(ushort) + sizeof(int) + sizeof(long);
+        public const ushort AppendTableReaderWriterId = 30000;
+
+        public static readonly byte[] Header = [80, 77];
+        public const string DefaultExtension = ".dat";
+        public const byte CompressionNone = 0;
+        public const byte CompressionBrotli = 1;
+        public const int RowCountZero = 0;
+        public const int DefaultLength = 0;
+        public const int TotalHeaderLength = sizeof(ushort) + HeaderLength + sizeof(long) + sizeof(long) + (sizeof(int) * 4) + sizeof(byte) + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
+        public const int PrimarySequenceStart = HeaderLength + sizeof(ushort);
+        public const int SecondarySequenceStart = PrimarySequenceStart + sizeof(long);
+        public const int WriteVersionStart = SecondarySequenceStart + sizeof(long);
+        public const int PageHeaderSize = sizeof(int) + sizeof(byte) + sizeof(ushort) + sizeof(int) + sizeof(long);
 
 
-		public const int StartOfRecordCount = TotalHeaderLength - ((sizeof(int) * 4) + sizeof(byte));
-		public const int StartOfPageSize = StartOfRecordCount - (sizeof(byte) + sizeof(int));
+        public const int StartOfRecordCount = TotalHeaderLength - ((sizeof(int) * 4) + sizeof(byte));
+        public const int StartOfPageSize = StartOfRecordCount - (sizeof(byte) + sizeof(int));
 
-		public const int HeaderLength = 2;
-		public const int DefaultSequenceIncrement = 1;
-		public const int DataVersionStart = 0;
-		public const int DefaultStackSize = 1000000;
-		public const int MaxStackAllocSize = DefaultStackSize / 4;
-		public const byte PageTypeData = 1;
-		public const ushort PageVersion = 1;
-	}
+        public const int HeaderLength = 2;
+        public const int DefaultSequenceIncrement = 1;
+        public const int DataVersionStart = 0;
+        public const int DefaultStackSize = 1000000;
+        public const int MaxStackAllocSize = DefaultStackSize / 4;
+        public const byte PageTypeData = 1;
+        public const ushort PageVersion = 1;
+    }
 }
 
 #pragma warning restore IDE0230

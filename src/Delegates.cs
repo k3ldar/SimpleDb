@@ -27,9 +27,9 @@
 
 namespace SimpleDB
 {
-	/// <summary>
-	/// Database event delegate
-	/// </summary>
-	/// <param name="sender"></param>
-	public delegate void SimpleDbEvent(ISimpleDBTable sender);
+    /// <summary>
+    /// Database event delegate
+    /// </summary>
+    /// <param name="sender"></param>
+    public delegate void SimpleDbEvent(ISimpleDBTable sender);
 }

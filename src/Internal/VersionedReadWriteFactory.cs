@@ -23,38 +23,36 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-using SimpleDB.Abstractions;
-using SimpleDB.Interfaces;
 using SimpleDB.Readers;
 using SimpleDB.Writers;
 
 namespace SimpleDB.Internal
 {
-	internal class VersionedReadWriteFactory : IVersionedReadWriteFactory
-	{
-		public IDataReader GetReader(ushort version)
-		{
-			switch (version)
-			{
-				case 0:
-				case 1:
-					return new TableReadVersionOne();
+    internal class VersionedReadWriteFactory : IVersionedReadWriteFactory
+    {
+        public IDataReader GetReader(ushort version)
+        {
+            switch (version)
+            {
+                case 0:
+                case 1:
+                    return new TableReadVersionOne();
 
-				case 2:
-					return new TableReadVersionTwo();
+                case 2:
+                    return new TableReadVersionTwo();
 
-				case 3:
-					return new TableReadVersionThree();
+                case 3:
+                    return new TableReadVersionThree();
 
-				default:
-					throw new ArgumentException(null, nameof(version));
-			}
-		}
+                default:
+                    throw new ArgumentException(null, nameof(version));
+            }
+        }
 
-		public IDataWriter GetWriter()
-		{
-			// always return the latest version
-			return new TableWriteVersionThree();
-		}
-	}
+        public IDataWriter GetWriter()
+        {
+            // always return the latest version
+            return new TableWriteVersionThree();
+        }
+    }
 }
