@@ -23,14 +23,12 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-using SimpleDB.Interfaces;
-
-namespace SimpleDB.Abstractions
+namespace SimpleDB
 {
-	internal interface IVersionedReadWriteFactory
-	{
-		IDataReader GetReader(ushort version);
+    internal interface IVersionedReadWriteFactory
+    {
+        IDataReader GetReader(ushort version);
 
-		IDataWriter GetWriter();
-	}
+        IDataWriter GetWriter();
+    }
 }

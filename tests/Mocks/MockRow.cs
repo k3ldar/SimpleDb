@@ -27,19 +27,19 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SimpleDB.Tests.Mocks
 {
-	[ExcludeFromCodeCoverage]
-	[Table("MockTable", cachingStrategy: CachingStrategy.Memory)]
-	public sealed class MockRow : TableRowDefinition
-	{
-		public MockRow()
-		{
+    [ExcludeFromCodeCoverage]
+    [Table("MockTable", cachingStrategy: CachingStrategy.Memory)]
+    public sealed class MockRow : TableRowDefinition
+    {
+        public MockRow()
+        {
 
-		}
+        }
 
-		public MockRow(int id)
-			: this()
-		{
-			Id = id;
-		}
-	}
+        public MockRow(int id)
+            : this()
+        {
+            Id = id;
+        }
+    }
 }

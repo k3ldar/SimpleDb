@@ -32,50 +32,58 @@ using SharedPluginFeatures;
 
 namespace SimpleDB.Tests.Mocks
 {
-	[ExcludeFromCodeCoverage]
-	public class MockTextTable : ISimpleDBTable
-	{
-		private readonly string _tableName;
-		private readonly bool _idExists;
+    [ExcludeFromCodeCoverage]
+    public class MockTextTable : ISimpleDBTable
+    {
+        private readonly string _tableName;
+        private readonly bool _idExists;
 
-		public MockTextTable(string tableName, bool idExists)
-		{
-			_tableName = tableName;
-			_idExists = idExists;
-		}
+        public MockTextTable(string tableName, bool idExists)
+        {
+            _tableName = tableName;
+            _idExists = idExists;
+        }
 
-		public string TableName => _tableName;
+        public string TableName => _tableName;
 
-		public CachingStrategy CachingStrategy => throw new NotImplementedException();
+        public CachingStrategy CachingStrategy => CachingStrategy.Memory;
 
-		public WriteStrategy WriteStrategy => throw new NotImplementedException();
+        public WriteStrategy WriteStrategy => WriteStrategy.Lazy;
 
-		public TimeSpan SlidingMemoryTimeout => throw new NotImplementedException();
+        public TimeSpan SlidingMemoryTimeout => TimeSpan.Zero;
 
-		public Dictionary<string, Timings> GetAllTimings => throw new NotImplementedException();
+        public Dictionary<string, Timings> GetAllTimings => new Dictionary<string, Timings>();
+
+        public long LogicalDataSizeBytes => 0;
+
+        public long PhysicalDataSizeBytes => 0;
+
+        public long InMemoryCacheSizeBytes => 0;
+
+        public int RecordCount => 0;
 
 #pragma warning disable CS0067
-		public event SimpleDbEvent OnAction;
+        public event SimpleDbEvent OnAction;
 #pragma warning restore CS0067
 
-		public void ClearAllMemory()
-		{
-			throw new NotImplementedException();
-		}
+        public void ClearAllMemory()
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool IdExists(long id)
-		{
-			return _idExists;
-		}
+        public bool IdExists(long id)
+        {
+            return _idExists;
+        }
 
-		public bool IdIsInUse(string propertyName, long value)
-		{
-			throw new NotImplementedException();
-		}
+        public bool IdIsInUse(string propertyName, long value)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Initialize(IPluginClassesService pluginClassesService)
-		{
-			throw new NotImplementedException();
-		}
-	}
+        public void Initialize(IPluginClassesService pluginClassesService)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

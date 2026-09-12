@@ -23,51 +23,52 @@
  *  10/12/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Abstractions;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Readers
 {
-	internal class TableReadVersionTwo : IDataReader
-	{
-		public ushort Version => 2;
+    [ExcludeFromCodeCoverage(Justification = "Unused internal class, required for backwards compatibility only")]
+    internal class TableReadVersionTwo : IDataReader
+    {
+        public ushort Version => 2;
 
-		public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
-		{
-			using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
-			fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
-			CompressionType compressionType = (CompressionType)reader.ReadByte();
-			pageCount = -1;
-			recordCount = reader.ReadInt32();
-			dataLength = reader.ReadInt32();
+        public List<T> ReadRecords<T>(FileStream fileStream, ref int pageCount, ref int recordCount, ref int dataLength)
+        {
+            using BinaryReader reader = new(fileStream, Encoding.UTF8, true);
+            fileStream.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            CompressionType compressionType = (CompressionType)reader.ReadByte();
+            pageCount = -1;
+            recordCount = reader.ReadInt32();
+            dataLength = reader.ReadInt32();
 
-			if (dataLength == 0)
-				return [];
+            if (dataLength == 0)
+                return [];
 
-			Span<byte> data = reader.ReadBytes(dataLength);
+            Span<byte> data = reader.ReadBytes(dataLength);
 
-			List<T> Result;
+            List<T> Result;
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> uncompressed = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new byte[dataLength];
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> uncompressed = dataLength < Consts.MaxStackAllocSize ? stackalloc byte[dataLength] : new byte[dataLength];
 
-				System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int byteLength);
+                System.IO.Compression.BrotliDecoder.TryDecompress(data, uncompressed, out int byteLength);
 
-				if (byteLength != dataLength)
-					throw new InvalidDataException();
+                if (byteLength != dataLength)
+                    throw new InvalidDataException();
 
-				Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
-			}
-			else
-			{
-				Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
-			}
+                Result = JsonSerializer.Deserialize<List<T>>(uncompressed, Consts.JsonSerializerOptions);
+            }
+            else
+            {
+                Result = JsonSerializer.Deserialize<List<T>>(data, Consts.JsonSerializerOptions);
+            }
 
-			return Result;
-		}
-	}
+            return Result;
+        }
+    }
 }

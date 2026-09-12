@@ -24,146 +24,149 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using PluginManager.Abstractions;
 
 using SharedPluginFeatures;
+
 using SimpleDb.Tests.Mocks;
+
 using SimpleDB.Tests.Mocks;
 
 namespace SimpleDB.Tests
 {
-	[TestClass]
-	[ExcludeFromCodeCoverage]
-	public class PluginInitialisationTests
-	{
-		private const string GeneralTestsCategory = "Text File DAL";
+    [TestClass]
+    [ExcludeFromCodeCoverage]
+    public class PluginInitialisationTests
+    {
+        private const string GeneralTestsCategory = "Text File DAL";
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void ExtendsIPluginAndIInitialiseEvents()
-		{
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void ExtendsIPluginAndIInitialiseEvents()
+        {
+            PluginInitialisation sut = new();
 
-			Assert.IsInstanceOfType(sut, typeof(IPlugin));
-			Assert.IsInstanceOfType(sut, typeof(IInitialiseEvents));
-		}
+            Assert.IsInstanceOfType(sut, typeof(IPlugin));
+            Assert.IsInstanceOfType(sut, typeof(IInitialiseEvents));
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void GetVersion_ReturnsCurrentVersion_Success()
-		{
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void GetVersion_ReturnsCurrentVersion_Success()
+        {
+            PluginInitialisation sut = new();
 
-			Assert.AreEqual((ushort)1, sut.GetVersion());
-		}
+            Assert.AreEqual((ushort)1, sut.GetVersion());
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void Initialize_DoesNotAddItemsToLogger()
-		{
-			PluginInitialisation sut = new();
-			MockLogger testLogger = new();
-			sut.Initialise(testLogger);
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void Initialize_DoesNotAddItemsToLogger()
+        {
+            PluginInitialisation sut = new();
+            MockLogger testLogger = new();
+            sut.Initialise(testLogger);
 
-			Assert.AreEqual(0, testLogger.Logs.Count);
-		}
+            Assert.AreEqual(0, testLogger.Logs.Count);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void AfterConfigure_DoesNotConfigurePipeline_Success()
-		{
-			MockApplicationBuilder testApplicationBuilder = new();
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void AfterConfigure_DoesNotConfigurePipeline_Success()
+        {
+            MockApplicationBuilder testApplicationBuilder = new();
+            PluginInitialisation sut = new();
 
-			sut.AfterConfigure(testApplicationBuilder);
+            sut.AfterConfigure(testApplicationBuilder);
 
-			Assert.IsFalse(testApplicationBuilder.UseCalled);
-		}
+            Assert.IsFalse(testApplicationBuilder.UseCalled);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void Configure_DoesNotConfigurePipeline_Success()
-		{
-			MockApplicationBuilder testApplicationBuilder = new();
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void Configure_DoesNotConfigurePipeline_Success()
+        {
+            MockApplicationBuilder testApplicationBuilder = new();
+            PluginInitialisation sut = new();
 
-			sut.Configure(testApplicationBuilder);
+            sut.Configure(testApplicationBuilder);
 
-			Assert.IsFalse(testApplicationBuilder.UseCalled);
-		}
+            Assert.IsFalse(testApplicationBuilder.UseCalled);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void BeforeConfigure_DoesNotRegisterApplicationServices()
-		{
-			MockApplicationBuilder testApplicationBuilder = new();
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void BeforeConfigure_DoesNotRegisterApplicationServices()
+        {
+            MockApplicationBuilder testApplicationBuilder = new();
+            PluginInitialisation sut = new();
 
-			sut.BeforeConfigure(testApplicationBuilder);
+            sut.BeforeConfigure(testApplicationBuilder);
 
-			Assert.IsFalse(testApplicationBuilder.UseCalled);
-		}
+            Assert.IsFalse(testApplicationBuilder.UseCalled);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void Configure_DoesNotRegisterApplicationServices()
-		{
-			MockApplicationBuilder applicationBuilder = new();
-			PluginInitialisation sut = new();
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void Configure_DoesNotRegisterApplicationServices()
+        {
+            MockApplicationBuilder applicationBuilder = new();
+            PluginInitialisation sut = new();
 
-			sut.Configure(applicationBuilder);
+            sut.Configure(applicationBuilder);
 
-			Assert.IsFalse(applicationBuilder.UseCalled);
-		}
+            Assert.IsFalse(applicationBuilder.UseCalled);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void Finalise_DoesNotThrowException()
-		{
-			PluginInitialisation sut = new();
-			Assert.IsNotNull(sut);
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void Finalise_DoesNotThrowException()
+        {
+            PluginInitialisation sut = new();
+            Assert.IsNotNull(sut);
 
-			sut.Finalise();
-		}
+            sut.Finalise();
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void BeforeConfigureServices_RegistersCorrectServices_Success()
-		{
-			PluginInitialisation sut = new();
-			MockServiceCollection mockServiceCollection = [];
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void BeforeConfigureServices_RegistersCorrectServices_Success()
+        {
+            PluginInitialisation sut = new();
+            MockServiceCollection mockServiceCollection = [];
 
-			sut.BeforeConfigureServices(mockServiceCollection);
+            sut.BeforeConfigureServices(mockServiceCollection);
 
-			Assert.AreEqual(0, mockServiceCollection.Count);
-		}
+            Assert.AreEqual(0, mockServiceCollection.Count);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void ConfigureServices_DoesNotThrowException()
-		{
-			PluginInitialisation sut = new();
-			MockServiceCollection mockServiceCollection = [];
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void ConfigureServices_DoesNotThrowException()
+        {
+            PluginInitialisation sut = new();
+            MockServiceCollection mockServiceCollection = [];
 
-			sut.ConfigureServices(mockServiceCollection);
+            sut.ConfigureServices(mockServiceCollection);
 
-			Assert.AreEqual(0, mockServiceCollection.Count);
-		}
+            Assert.AreEqual(0, mockServiceCollection.Count);
+        }
 
-		[TestMethod]
-		[TestCategory(GeneralTestsCategory)]
-		public void AfterConfigureServices_DoesNotThrowException_Success()
-		{
-			const int RegisteredService = 4;
+        [TestMethod]
+        [TestCategory(GeneralTestsCategory)]
+        public void AfterConfigureServices_DoesNotThrowException_Success()
+        {
+            const int RegisteredService = 8;
 
-			PluginInitialisation sut = new();
-			MockServiceCollection mockServiceCollection = [];
+            PluginInitialisation sut = new();
+            MockServiceCollection mockServiceCollection = [];
 
-			sut.AfterConfigureServices(mockServiceCollection);
+            sut.AfterConfigureServices(mockServiceCollection);
 
-			Assert.AreEqual(RegisteredService, mockServiceCollection.Count);
-		}
-	}
+            Assert.AreEqual(RegisteredService, mockServiceCollection.Count);
+        }
+    }
 }

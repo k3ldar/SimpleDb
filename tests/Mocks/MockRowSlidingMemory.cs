@@ -27,10 +27,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SimpleDB.Tests.Mocks
 {
-	[ExcludeFromCodeCoverage]
-	[Table("MockTableSlidingMemory", cachingStrategy: CachingStrategy.SlidingMemory, SlidingMemoryTimeoutMilliseconds = 2)]
-	internal class MockRowSlidingMemory : TableRowDefinition
-	{
-		public int RowId { get; set; }
-	}
+    [ExcludeFromCodeCoverage]
+    [Table("MockTableSlidingMemory", cachingStrategy: CachingStrategy.SlidingMemory, SlidingMemoryTimeoutMilliseconds = 2)]
+    internal class MockRowSlidingMemory : TableRowDefinition
+    {
+        public int RowId { get; set; }
+    }
 }

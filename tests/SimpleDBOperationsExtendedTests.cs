@@ -27,10 +27,12 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using Shared.Classes;
 using SharedPluginFeatures;
+
 using SimpleDb.Tests;
+
 using SimpleDB.Internal;
+using SimpleDB.Internal.Tables;
 using SimpleDB.Tests.Mocks;
 
 using io = System.IO;
@@ -60,13 +62,13 @@ namespace SimpleDB.Tests
             TriggerType.BeforeDelete | TriggerType.AfterDelete |
             TriggerType.BeforeUpdate | TriggerType.BeforeUpdateCompare | TriggerType.AfterUpdate;
 
-        public void BeforeInsert(List<T> records) => BeforeInsertCallCount++;
-        public void AfterInsert(List<T> records) => AfterInsertCallCount++;
-        public void BeforeDelete(List<T> records) => BeforeDeleteCallCount++;
-        public void AfterDelete(List<T> records) => AfterDeleteCallCount++;
-        public void BeforeUpdate(List<T> records) => BeforeUpdateCallCount++;
-        public void BeforeUpdate(T newRecord, T oldRecord) => BeforeUpdateCompareCallCount++;
-        public void AfterUpdate(List<T> records) => AfterUpdateCallCount++;
+        public void BeforeInsert(List<T> records, ITriggerContext _) => BeforeInsertCallCount++;
+        public void AfterInsert(List<T> records, ITriggerContext _) => AfterInsertCallCount++;
+        public void BeforeDelete(List<T> records, ITriggerContext _) => BeforeDeleteCallCount++;
+        public void AfterDelete(List<T> records, ITriggerContext _) => AfterDeleteCallCount++;
+        public void BeforeUpdate(List<T> records, ITriggerContext _) => BeforeUpdateCallCount++;
+        public void BeforeUpdate(T newRecord, T oldRecord, ITriggerContext _) => BeforeUpdateCompareCallCount++;
+        public void AfterUpdate(List<T> records, ITriggerContext _) => AfterUpdateCallCount++;
     }
 
     [ExcludeFromCodeCoverage]
@@ -94,7 +96,7 @@ namespace SimpleDB.Tests
 
     [TestClass]
     [ExcludeFromCodeCoverage]
-    public class SimpleDBOperationsExtendedTests
+    public class SimpleDBOperationsExtendedTests : BaseTest
     {
         [ClassInitialize]
         public static void ClassInitialize(TestContext context)
@@ -107,48 +109,6 @@ namespace SimpleDB.Tests
 
         private static SimpleDBManager CreateTestInitializer(string path) => new(path);
 
-        private static void DeleteDirectoryWithRetry(string directory, int retries = 10, int delayMs = 100)
-        {
-            for (int i = 0; i < retries; i++)
-            {
-                try
-                {
-                    io.Directory.Delete(directory, true);
-                    return;
-                }
-                catch (io.IOException)
-                {
-                    if (i < retries - 1)
-                    {
-                        Thread.Sleep(delayMs);
-                    }
-                    else
-                    {
-                        // On final retry, try to delete individual files first
-                        try
-                        {
-                            foreach (var file in io.Directory.GetFiles(directory, "*", io.SearchOption.AllDirectories))
-                            {
-                                try
-                                {
-                                    io.File.SetAttributes(file, io.FileAttributes.Normal);
-                                    io.File.Delete(file);
-                                }
-                                catch { }
-                            }
-                            io.Directory.Delete(directory, true);
-                            return;
-                        }
-                        catch
-                        {
-                            // If we still can't delete after all retries, just swallow the exception
-                            // The test has completed and the next test run will clean up
-                        }
-                    }
-                }
-            }
-        }
-
         #endregion
 
         #region Properties
@@ -156,75 +116,85 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void TableName_ReturnsCorrectValue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = base.CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual("MockTable", sut.TableName);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void CachingStrategy_ReturnsCorrectValue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = base.CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual(CachingStrategy.Memory, sut.CachingStrategy);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
-        public void WriteStrategy_ForcedWrite_ReturnsCorrectValue()
+        public void WriteStrategy_ForcedWrite_ReturnsLazyAsForcedWriteNoLongerSupportedCorrectValue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
-                Assert.AreEqual(WriteStrategy.Forced, sut.WriteStrategy);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = base.CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
+                Assert.AreEqual(WriteStrategy.Lazy, sut.WriteStrategy);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void WriteStrategy_LazyWrite_ReturnsCorrectValue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockLazyWriteRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockLazyWriteRow> sut = base.CreateTable<MockLazyWriteRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual(WriteStrategy.Lazy, sut.WriteStrategy);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void SlidingMemoryTimeout_ReturnsCorrectValue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                SimpleDBOperations<MockRowSlidingMemory> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                SimpleDBOperations<MockRowSlidingMemory> sut = CreateTable<MockRowSlidingMemory>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 TimeSpan timeout = sut.SlidingMemoryTimeout;
                 sut.Dispose();
                 GC.Collect();
@@ -234,84 +204,94 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                DeleteDirectoryWithRetry(directory, 30, 200);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void TableLock_ReturnsNonNullObject()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.IsNotNull(sut.TableLock);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void CompactPercent_ReturnsZeroOnNewTable()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual((byte)0, sut.CompactPercent);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void FileVersion_ReturnsZeroOnNewTable()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual((ushort)0, sut.FileVersion);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void GetAllTimings_ReturnsNonEmptyDictionary()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Dictionary<string, Timings> timings = sut.GetAllTimings;
                 Assert.IsNotNull(timings);
                 Assert.IsTrue(timings.Count > 0);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void GetAllTimings_ReturnsClonedCopies_NotSameReferences()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Dictionary<string, Timings> timings1 = sut.GetAllTimings;
                 Dictionary<string, Timings> timings2 = sut.GetAllTimings;
                 // Each call returns a new dictionary
@@ -319,7 +299,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -332,17 +312,19 @@ namespace SimpleDB.Tests
         [SuppressMessage("Major Code Smell", "S3966:Objects should not be disposed more than once", Justification = "Testing disposed behaviour")]
         public void Select_Predicate_ObjectDisposed_Throws_ObjectDisposedException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Dispose();
                 _ = sut.Select(r => r.Id > 0);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -350,22 +332,25 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentNullException))]
         public void Select_Predicate_NullPredicate_Throws_ArgumentNullException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 _ = sut.Select(predicate: null);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Select_Predicate_ReturnsMatchingRecords()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -373,25 +358,27 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using (SimpleDBOperations<MockRow> sut = new(manager, keyManager))
+                IWatermarkAccessor watermarkAccessor = null;
+                using (SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor))
                 {
                     for (int i = 0; i < 10; i++)
                         sut.Insert(new MockRow());
                 }
 
-                using SimpleDBOperations<MockRow> readSut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> readSut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 IReadOnlyList<MockRow> result = readSut.Select(r => r.Id >= 5);
                 Assert.AreEqual(5, result.Count);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Select_Predicate_NoMatchingRecords_ReturnsEmptyList()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -399,19 +386,20 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using (SimpleDBOperations<MockRow> sut = new(manager, keyManager))
+                IWatermarkAccessor watermarkAccessor = null;
+                using (SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor))
                 {
                     for (int i = 0; i < 5; i++)
                         sut.Insert(new MockRow());
                 }
 
-                using SimpleDBOperations<MockRow> readSut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> readSut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 IReadOnlyList<MockRow> result = readSut.Select(r => r.Id > 1000);
                 Assert.AreEqual(0, result.Count);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -422,14 +410,16 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void Truncate_RemovesAllRecords()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
+                IWatermarkAccessor watermarkAccessor = null;
 
-                using (SimpleDBOperations<MockRow> sut = new(manager, keyManager))
+                using (SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor))
                 {
                     for (int i = 0; i < 10; i++)
                         sut.Insert(new MockRow());
@@ -441,30 +431,32 @@ namespace SimpleDB.Tests
                     Assert.AreEqual(0, sut.RecordCount);
                 }
 
-                using SimpleDBOperations<MockRow> readSut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> readSut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual(0, readSut.RecordCount);
                 Assert.AreEqual(0, readSut.Select().Count);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Truncate_OnEmptyTable_Succeeds()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Truncate();
                 Assert.AreEqual(0, sut.RecordCount);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -475,24 +467,27 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void ForceWrite_ForcedWriteStrategy_DoesNotThrow()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 // MockRow uses WriteStrategy.Forced — ForceWrite short-circuits in that case
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRow());
                 sut.ForceWrite(); // should not throw
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void ForceWrite_LazyWriteStrategy_FlushesDataToDisk()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -503,7 +498,8 @@ namespace SimpleDB.Tests
                 long sizeBeforeForce;
                 long sizeAfterForce;
 
-                using (SimpleDBOperations<MockLazyWriteRow> sut = new(manager, keyManager))
+                IWatermarkAccessor watermarkAccessor = null;
+                using (SimpleDBOperations<MockLazyWriteRow> sut = CreateTable<MockLazyWriteRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor))
                 {
                     sut.Insert(new MockLazyWriteRow("hello"));
                     sizeBeforeForce = new io.FileInfo(io.Path.Combine(directory, "MockLazyWriteTable.dat")).Length;
@@ -515,7 +511,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -526,6 +522,7 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void ClearAllMemory_MemoryCachingStrategy_FlushesCacheAndWritesToDisk()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -533,7 +530,8 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using (SimpleDBOperations<MockRow> sut = new(manager, keyManager))
+                IWatermarkAccessor watermarkAccessor = null;
+                using (SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor))
                 {
                     sut.Insert(new MockRow());
                     // Populate in-memory cache via Select
@@ -542,29 +540,31 @@ namespace SimpleDB.Tests
                 }
 
                 // Data should still be readable after ClearAllMemory
-                using SimpleDBOperations<MockRow> readSut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> readSut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 Assert.AreEqual(1, readSut.RecordCount);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void ClearAllMemory_CalledMultipleTimes_DoesNotThrow()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.ClearAllMemory();
                 sut.ClearAllMemory();
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -575,33 +575,37 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void IdExists_ExistingId_ReturnsTrue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRow());
                 Assert.IsTrue(sut.IdExists(0));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void IdExists_NonExistingId_ReturnsFalse()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.IsFalse(sut.IdExists(999));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -613,16 +617,18 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentNullException))]
         public void IndexExists_NullName_Throws_ArgumentNullException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRowMultipleIndex> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRowMultipleIndex> sut = CreateTable<MockRowMultipleIndex>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.IndexExists(null, "value");
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -630,50 +636,56 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void IndexExists_NonExistentIndexName_Throws_ArgumentOutOfRangeException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRowMultipleIndex> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRowMultipleIndex> sut = CreateTable<MockRowMultipleIndex>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.IndexExists("DoesNotExist", "value");
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void IndexExists_ExistingIndexValue_ReturnsTrue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRowMultipleIndex> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRowMultipleIndex> sut = CreateTable<MockRowMultipleIndex>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRowMultipleIndex() { Name = "Alpha", Index = 1 });
                 // Multi-property index value is concatenated
                 Assert.IsTrue(sut.IndexExists("TestIndex", "Alpha1"));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void IndexExists_NonExistingIndexValue_ReturnsFalse()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRowMultipleIndex> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRowMultipleIndex> sut = CreateTable<MockRowMultipleIndex>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.IsFalse(sut.IndexExists("TestIndex", "NeverInserted99"));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -684,36 +696,40 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void IdIsInUse_ValueExists_ReturnsTrue()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
+                IWatermarkAccessor watermarkAccessor = null;
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRow());
                 Assert.IsTrue(sut.IdIsInUse(nameof(TableRowDefinition.Id), 0));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void IdIsInUse_ValueNotFound_ReturnsFalse()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 Assert.IsFalse(sut.IdIsInUse(nameof(TableRowDefinition.Id), 999));
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -724,35 +740,39 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void Insert_Single_WithInsertOptions_NullOptions_UsesDefaults()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
+                IWatermarkAccessor watermarkAccessor = null;
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRow(), null);
                 Assert.AreEqual(1, sut.RecordCount);
                 Assert.AreEqual(0, sut.Select(0).Id);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Insert_List_WithInsertOptions_AssignPrimaryKeyFalse_DoesNotChangePrimarySequence()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
+                IWatermarkAccessor watermarkAccessor = null;
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 long sequenceBefore = sut.PrimarySequence;
 
                 sut.Insert([new MockRow()], new InsertOptions(false));
@@ -761,7 +781,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -769,36 +789,40 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentException))]
         public void Insert_List_EmptyList_Throws_ArgumentException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert([]);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Insert_List_WithInsertOptions_NullOptions_UsesDefaults()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
+                IWatermarkAccessor watermarkAccessor = null;
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert([new MockRow()], null);
                 Assert.AreEqual(1, sut.RecordCount);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -811,17 +835,19 @@ namespace SimpleDB.Tests
         [SuppressMessage("Major Code Smell", "S3966:Objects should not be disposed more than once", Justification = "Testing disposed behaviour")]
         public void InsertOrUpdate_ObjectDisposed_Throws_ObjectDisposedException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Dispose();
                 sut.InsertOrUpdate(new MockRow());
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -829,16 +855,18 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentNullException))]
         public void InsertOrUpdate_NullRecord_Throws_ArgumentNullException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.InsertOrUpdate(null!);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -851,35 +879,39 @@ namespace SimpleDB.Tests
         [SuppressMessage("Major Code Smell", "S3966:Objects should not be disposed more than once", Justification = "Testing disposed behaviour")]
         public void NextSequence_WithIncrement_ObjectDisposed_Throws_ObjectDisposedException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Dispose();
                 _ = sut.NextSequence(5L);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void NextSequence_WithIncrement_IncreasesByGivenAmount()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 long seq = sut.NextSequence(10L);
                 Assert.AreEqual(9L, seq); // starts at -1, -1 + 10 = 9
                 Assert.AreEqual(9L, sut.PrimarySequence);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -888,35 +920,39 @@ namespace SimpleDB.Tests
         [SuppressMessage("Major Code Smell", "S3966:Objects should not be disposed more than once", Justification = "Testing disposed behaviour")]
         public void NextSecondarySequence_ObjectDisposed_Throws_ObjectDisposedException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Dispose();
                 _ = sut.NextSecondarySequence(1L);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void NextSecondarySequence_WithIncrement_IncreasesByGivenAmount()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
-                using SimpleDBOperations<MockRow> sut = new(CreateTestInitializer(directory), new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(CreateTestInitializer(directory), new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 long seq = sut.NextSecondarySequence(5L);
                 Assert.AreEqual(-1L + 5L, seq);
                 Assert.AreEqual(4L, sut.SecondarySequence);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -928,23 +964,26 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ArgumentNullException))]
         public void Initialize_NullPluginClassesService_Throws_ArgumentNullException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
                 io.Directory.CreateDirectory(directory);
                 SimpleDBManager manager = CreateTestInitializer(directory);
-                using SimpleDBOperations<MockRow> sut = new(manager, new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(null);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Initialize_CalledTwice_OnlyProcessesOnce()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -953,7 +992,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert(new MockRow());
                 int countAfterFirst = triggers.BeforeInsertCallCount;
@@ -965,13 +1005,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Initialize_WithTableDefaults_InsertsInitialData()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -988,14 +1029,15 @@ namespace SimpleDB.Tests
 
                 MockPluginClassesService pluginService = new([defaults]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
 
                 Assert.AreEqual(2, sut.RecordCount);
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -1006,6 +1048,7 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void Insert_Single_FiresBeforeAndAfterInsertTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1014,7 +1057,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert(new MockRow());
 
@@ -1023,13 +1067,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Delete_Single_FiresBeforeAndAfterDeleteTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1039,7 +1084,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert(new MockRow());
                 sut.Delete(sut.Select(0));
@@ -1049,13 +1095,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Update_Single_FiresBeforeAndAfterUpdateTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1065,7 +1112,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockUpdateRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockUpdateRow> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockUpdateRow> sut = CreateTable<MockUpdateRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert(new MockUpdateRow());
 
@@ -1079,13 +1127,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Insert_List_FiresBeforeAndAfterInsertTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1094,7 +1143,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, new ForeignKeyManager());
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, new ForeignKeyManager(), ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert([new MockRow(), new MockRow(), new MockRow()]);
 
@@ -1103,13 +1153,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Delete_List_FiresBeforeAndAfterDeleteTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1119,7 +1170,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockRow> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockRow> sut = CreateTable<MockRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert([new MockRow(), new MockRow()]);
 
@@ -1131,13 +1183,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Update_List_FiresBeforeAndAfterUpdateTriggers()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1147,7 +1200,8 @@ namespace SimpleDB.Tests
                 MockTriggers<MockUpdateRow> triggers = new();
                 MockPluginClassesService pluginService = new([triggers]);
 
-                using SimpleDBOperations<MockUpdateRow> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockUpdateRow> sut = CreateTable<MockUpdateRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Initialize(pluginService);
                 sut.Insert([new MockUpdateRow(), new MockUpdateRow()]);
 
@@ -1162,7 +1216,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -1174,6 +1228,7 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ForeignKeyException))]
         public void Insert_ForeignKeyViolation_Throws_ForeignKeyException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1182,15 +1237,16 @@ namespace SimpleDB.Tests
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
                 // Create user table (foreign key target)
-                using SimpleDBOperations<MockTableUserRow> users = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockTableUserRow> users = CreateTable<MockTableUserRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
 
                 // Insert address with a UserId that does not exist
-                using SimpleDBOperations<MockTableAddressRow> addresses = new(manager, keyManager);
+                using SimpleDBOperations<MockTableAddressRow> addresses = CreateTable<MockTableAddressRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 addresses.Insert(new MockTableAddressRow() { UserId = 999, Description = "orphan" });
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -1198,6 +1254,7 @@ namespace SimpleDB.Tests
         [ExpectedException(typeof(ForeignKeyException))]
         public void Delete_ForeignKeyReferenced_Throws_ForeignKeyException()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1205,8 +1262,9 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using SimpleDBOperations<MockTableUserRow> users = new(manager, keyManager);
-                using SimpleDBOperations<MockTableAddressRow> addresses = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockTableUserRow> users = CreateTable<MockTableUserRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
+                using SimpleDBOperations<MockTableAddressRow> addresses = CreateTable<MockTableAddressRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
 
                 users.Insert(new MockTableUserRow(0) { Id = 0 });
                 addresses.Insert(new MockTableAddressRow() { UserId = 0, Description = "test" });
@@ -1216,13 +1274,14 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
         [TestMethod]
         public void Insert_ForeignKey_ValidReference_Succeeds()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1230,8 +1289,9 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using SimpleDBOperations<MockTableUserRow> users = new(manager, keyManager);
-                using SimpleDBOperations<MockTableAddressRow> addresses = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockTableUserRow> users = CreateTable<MockTableUserRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
+                using SimpleDBOperations<MockTableAddressRow> addresses = CreateTable<MockTableAddressRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
 
                 users.Insert(new MockTableUserRow(0) { Id = 0 });
                 addresses.Insert(new MockTableAddressRow() { UserId = 0, Description = "valid" });
@@ -1240,7 +1300,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -1250,6 +1310,7 @@ namespace SimpleDB.Tests
         {
             // MockTableAddressRow.UserId uses [ForeignKey("MockTableUser")] with ForeignKeyAttributes.None,
             // so any value with no matching row in the user table throws ForeignKeyException.
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             try
             {
@@ -1257,15 +1318,16 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                using SimpleDBOperations<MockTableUserRow> users = new(manager, keyManager);
-                using SimpleDBOperations<MockTableAddressRow> addresses = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                using SimpleDBOperations<MockTableUserRow> users = CreateTable<MockTableUserRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
+                using SimpleDBOperations<MockTableAddressRow> addresses = CreateTable<MockTableAddressRow>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
 
                 // No users inserted; UserId = 0 does not exist and attribute is None, not DefaultValue
                 addresses.Insert(new MockTableAddressRow() { UserId = 0, Description = "no match" });
             }
             finally
             {
-                io.Directory.Delete(directory, true);
+                FinaliseTest(walTableAccessor, directory);
             }
         }
 
@@ -1276,6 +1338,7 @@ namespace SimpleDB.Tests
         [TestMethod]
         public void SlidingMemory_DataReadableAfterTimeout()
         {
+            IWalTableAccessor walTableAccessor = null;
             string directory = TestHelper.GetTestPath();
             int count;
             int rowId;
@@ -1285,7 +1348,8 @@ namespace SimpleDB.Tests
                 ISimpleDBManager manager = CreateTestInitializer(directory);
                 IForeignKeyManager keyManager = new ForeignKeyManager();
 
-                SimpleDBOperations<MockRowSlidingMemory> sut = new(manager, keyManager);
+                IWatermarkAccessor watermarkAccessor = null;
+                SimpleDBOperations<MockRowSlidingMemory> sut = CreateTable<MockRowSlidingMemory>(manager, keyManager, ref walTableAccessor, ref watermarkAccessor);
                 sut.Insert(new MockRowSlidingMemory() { RowId = 42 });
 
                 // Wait for sliding memory timeout (2ms)
@@ -1302,7 +1366,7 @@ namespace SimpleDB.Tests
             }
             finally
             {
-                DeleteDirectoryWithRetry(directory, 30, 200);
+                FinaliseTest(walTableAccessor, directory);
             }
 
             Assert.AreEqual(1, count);
@@ -1310,5 +1374,12 @@ namespace SimpleDB.Tests
         }
 
         #endregion
+
+        private static void FinaliseTest(IWalTableAccessor walTableAccessor, string directory)
+        {
+            SimpleDBOperations<WalEntryDataRow> baseWal = walTableAccessor?.WalTable as SimpleDBOperations<WalEntryDataRow>;
+            baseWal?.CloseForMaintenance();
+            io.Directory.Delete(directory, true);
+        }
     }
 }

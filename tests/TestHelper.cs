@@ -23,43 +23,41 @@
  *  20/08/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Reflection;
 
 namespace SimpleDb.Tests
 {
-	[ExcludeFromCodeCoverage]
-	public static class TestHelper
-	{
-		private static string _rootPath;
+    [ExcludeFromCodeCoverage]
+    public static class TestHelper
+    {
+        private static string _rootPath;
 
-		static TestHelper()
-		{
-			string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        static TestHelper()
+        {
+            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-			_rootPath = Path.Combine(Path.GetFullPath(assemblyPath), "..\\..\\..\\..\\..\\", "Output", "TestFolders");
+            _rootPath = Path.Combine(Path.GetFullPath(assemblyPath), "..\\..\\..\\..\\..\\", "Output", "TestFolders");
 
-			if (!Directory.Exists(_rootPath))
-				Directory.CreateDirectory(_rootPath);
-		}
+            if (!Directory.Exists(_rootPath))
+                Directory.CreateDirectory(_rootPath);
+        }
 
-		public static string GetTestPath()
-		{
-			return Path.Combine(_rootPath, Guid.NewGuid().ToString());
-		}
+        public static string GetTestPath()
+        {
+            return Path.Combine(_rootPath, Guid.NewGuid().ToString());
+        }
 
-		public static string CreateTestPath()
-		{
-			string path = GetTestPath();
-			Directory.CreateDirectory(path);
-			return path;
-		}
+        public static string CreateTestPath()
+        {
+            string path = GetTestPath();
+            Directory.CreateDirectory(path);
+            return path;
+        }
 
-		public static string GetTestPath(string pathPart)
-		{
-			return Path.Combine(_rootPath, pathPart, Guid.NewGuid().ToString());
-		}
-	}
+        public static string GetTestPath(string pathPart)
+        {
+            return Path.Combine(_rootPath, pathPart, Guid.NewGuid().ToString());
+        }
+    }
 }

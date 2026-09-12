@@ -25,47 +25,54 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 using Microsoft.Extensions.DependencyInjection;
 
-using SharedPluginFeatures;
-
 using SimpleDB.Internal;
 
 namespace SimpleDB
 {
-	/// <summary>
-	/// Helper class for registering Simple Db with IoC container
-	/// </summary>
-	public static class SimpleDBHelper
-	{
-		/// <summary>
-		/// Add required services
-		/// </summary>
-		/// <param name="services"></param>
-		/// <returns></returns>
-		public static IServiceCollection AddSimpleDB(this IServiceCollection services)
-		{
-			services.AddSingleton<IForeignKeyManager, ForeignKeyManager>();
-			services.AddSingleton<ISimpleDBManager, SimpleDBManager>();
-			services.AddSingleton(typeof(ISimpleDBOperations<>), typeof(SimpleDBOperations<>));
-			services.AddSingleton<IDatabaseTimings, DatabaseTimings>();
+    /// <summary>
+    /// Helper class for registering Simple Db with IoC container
+    /// </summary>
+    public static class SimpleDBHelper
+    {
+        /// <summary>
+        /// Add required services
+        /// </summary>
+        /// <param name="services"></param>
+        /// <returns></returns>
+        public static IServiceCollection AddSimpleDB(this IServiceCollection services)
+        {
+            // other required services
+            services.AddSingleton<IForeignKeyManager, ForeignKeyManager>();
+            services.AddSingleton<ISimpleDBManager, SimpleDBManager>();
+            services.AddSingleton(typeof(ISimpleDBOperations<>), typeof(SimpleDBOperations<>));
+            services.AddSingleton<IDatabaseMetrics, DatabaseMetrics>();
+            services.AddSingleton<IWalTableAccessor, WalTableAccessor>();
+            services.AddSingleton<IWatermarkAccessor, WatermarkAccessor>();
+            services.AddSingleton<ITransactionSequenceAccessor, TransactionSequenceAccessor>();
+            services.AddSingleton<ITransactionManager, TransactionManager>();
 
-			return services;
-		}
+            return services;
+        }
 
-		/// <summary>
-		/// Add required services with specific path and encryption key
-		/// </summary>
-		/// <param name="services"></param>
-		/// <param name="path"></param>
-		/// <param name="encryptionKey"></param>
-		/// <returns></returns>
-		public static IServiceCollection AddSimpleDB(this IServiceCollection services, string path, string encryptionKey)
-		{
-			services.AddSingleton<IForeignKeyManager, ForeignKeyManager>();
-			services.AddSingleton<ISimpleDBManager>(new SimpleDBManager(path, encryptionKey));
-			services.AddSingleton(typeof(ISimpleDBOperations<>), typeof(SimpleDBOperations<>));
-			services.AddSingleton<IDatabaseTimings, DatabaseTimings>();
+        /// <summary>
+        /// Add required services with specific path and encryption key
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="path"></param>
+        /// <param name="encryptionKey"></param>
+        /// <returns></returns>
+        public static IServiceCollection AddSimpleDB(this IServiceCollection services, string path, string encryptionKey)
+        {
+            services.AddSingleton<IForeignKeyManager, ForeignKeyManager>();
+            services.AddSingleton<ISimpleDBManager>(new SimpleDBManager(path, encryptionKey));
+            services.AddSingleton(typeof(ISimpleDBOperations<>), typeof(SimpleDBOperations<>));
+            services.AddSingleton<IDatabaseMetrics, DatabaseMetrics>();
+            services.AddSingleton<IWalTableAccessor, WalTableAccessor>();
+            services.AddSingleton<IWatermarkAccessor, WatermarkAccessor>();
+            services.AddSingleton<ITransactionSequenceAccessor, TransactionSequenceAccessor>();
+            services.AddSingleton<ITransactionManager, TransactionManager>();
 
-			return services;
-		}
-	}
+            return services;
+        }
+    }
 }

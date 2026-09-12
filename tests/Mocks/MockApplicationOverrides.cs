@@ -23,8 +23,6 @@
  *  25/07/2021  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 using AppSettings;

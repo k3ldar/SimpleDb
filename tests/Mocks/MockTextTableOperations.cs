@@ -32,154 +32,195 @@ using SharedPluginFeatures;
 
 namespace SimpleDB.Tests.Mocks
 {
-	[ExcludeFromCodeCoverage]
-	public sealed class MockTextTableOperations<T> : ISimpleDBOperations<T>, ISimpleDBTable
-		where T : TableRowDefinition
-	{
-		public int DataLength => throw new NotImplementedException();
+    [ExcludeFromCodeCoverage]
+    public sealed class MockTextTableOperations<T> : ISimpleDBOperations<T>, ISimpleDBTable
+        where T : TableRowDefinition
+    {
+        public int DataLength => throw new NotImplementedException();
 
-		public int RecordCount => throw new NotImplementedException();
+        public int RecordCount => throw new NotImplementedException();
 
-		public long PrimarySequence => throw new NotImplementedException();
+        public long PrimarySequence => throw new NotImplementedException();
 
-		public long SecondarySequence => throw new NotImplementedException();
+        public long SecondarySequence => throw new NotImplementedException();
 
-		public byte CompactPercent => throw new NotImplementedException();
+        public byte CompactPercent => throw new NotImplementedException();
 
-		public string TableName => throw new NotImplementedException();
+        public string TableName => throw new NotImplementedException();
 
-		public CachingStrategy CachingStrategy => throw new NotImplementedException();
+        public CachingStrategy CachingStrategy => CachingStrategy.Memory;
 
-		public WriteStrategy WriteStrategy => throw new NotImplementedException();
+        public WriteStrategy WriteStrategy => WriteStrategy.Lazy;
 
-		public TimeSpan SlidingMemoryTimeout => throw new NotImplementedException();
+        public TimeSpan SlidingMemoryTimeout => TimeSpan.Zero;
 
-		public Dictionary<string, Timings> GetAllTimings => throw new NotImplementedException();
+        public Dictionary<string, Timings> GetAllTimings => new Dictionary<string, Timings>();
+
+        public long LogicalDataSizeBytes => 0;
+
+        public long PhysicalDataSizeBytes => 0;
+
+        public long InMemoryCacheSizeBytes => 0;
 
 #pragma warning disable CS0067
-		public event SimpleDbEvent OnAction;
+        public event SimpleDbEvent OnAction;
 #pragma warning restore CS0067
 
-		public void Delete(List<T> records)
-		{
-			throw new NotImplementedException();
-		}
+        public void Delete(List<T> records)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Delete(T record)
-		{
-			throw new NotImplementedException();
-		}
+        public void Delete(T record)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Dispose()
-		{
-			throw new NotImplementedException();
-		}
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool IdExists(long id)
-		{
-			throw new NotImplementedException();
-		}
+        public bool IdExists(long id)
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool IdIsInUse(string propertyName, long value)
-		{
-			throw new NotImplementedException();
-		}
+        public bool IdIsInUse(string propertyName, long value)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Insert(List<T> records)
-		{
-			throw new NotImplementedException();
-		}
+        public void Insert(List<T> records)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Insert(T record)
-		{
-			throw new NotImplementedException();
-		}
+        public void Insert(T record)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Insert(T record, InsertOptions insertOptions)
-		{
-			throw new NotImplementedException();
-		}
+        public void Insert(T record, InsertOptions insertOptions)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Insert(List<T> records, InsertOptions insertOptions)
-		{
-			throw new NotImplementedException();
-		}
+        public void Insert(List<T> records, InsertOptions insertOptions)
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool IndexExists(string name, object value)
-		{
-			throw new NotImplementedException();
-		}
+        public bool IndexExists(string name, object value)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void InsertOrUpdate(T record)
-		{
-			throw new NotImplementedException();
-		}
+        public void InsertOrUpdate(T record)
+        {
+            throw new NotImplementedException();
+        }
 
-		public long NextSequence()
-		{
-			throw new NotImplementedException();
-		}
+        public long NextSequence()
+        {
+            throw new NotImplementedException();
+        }
 
-		public long NextSequence(long increment)
-		{
-			throw new NotImplementedException();
-		}
+        public long NextSequence(long increment)
+        {
+            throw new NotImplementedException();
+        }
 
-		public long NextSecondarySequence(long increment)
-		{
-			throw new NotImplementedException();
-		}
+        public long NextSecondarySequence(long increment)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void ResetSequence(long primarySequence, long secondarySequence)
-		{
-			throw new NotImplementedException();
-		}
+        public void ResetSequence(long primarySequence, long secondarySequence)
+        {
+            throw new NotImplementedException();
+        }
 
-		public object TableLock => this;
+        public object TableLock => this;
 
-		public IReadOnlyList<T> Select()
-		{
-			throw new NotImplementedException();
-		}
+        public IReadOnlyList<T> Select()
+        {
+            throw new NotImplementedException();
+        }
 
-		public T Select(long id)
-		{
-			throw new NotImplementedException();
-		}
+        public T Select(long id)
+        {
+            throw new NotImplementedException();
+        }
 
-		public IReadOnlyList<T> Select(Func<T, bool> predicate)
-		{
-			throw new NotImplementedException();
-		}
+        public IReadOnlyList<T> Select(Func<T, bool> predicate)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Truncate()
-		{
-			throw new NotImplementedException();
-		}
+        public void Truncate()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Update(List<T> records)
-		{
-			throw new NotImplementedException();
-		}
+        public void Update(List<T> records)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Update(T record)
-		{
-			throw new NotImplementedException();
-		}
+        public void Update(T record)
+        {
+            throw new NotImplementedException();
+        }
 
-		public void ForceWrite()
-		{
-			throw new NotImplementedException();
-		}
+        public void ForceWrite()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void ClearAllMemory()
-		{
-			throw new NotImplementedException();
-		}
+        public void ClearAllMemory()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void Initialize(IPluginClassesService pluginClassesService)
-		{
-			throw new NotImplementedException();
-		}
-	}
+        public void Initialize(IPluginClassesService pluginClassesService)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Insert(T record, InsertOptions insertOptions, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Insert(List<T> records, InsertOptions insertOptions, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Update(T record, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Update(List<T> records, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Delete(T record, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Delete(List<T> records, ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Truncate(ITransaction transaction)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

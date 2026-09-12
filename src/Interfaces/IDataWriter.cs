@@ -24,13 +24,13 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-namespace SimpleDB.Interfaces
+namespace SimpleDB
 {
-	internal interface IDataWriter
-	{
-		ushort Version { get; }
+    internal interface IDataWriter
+    {
+        ushort Version { get; }
 
-		void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType,
-			PageSize pageSize, ref byte compactPercent, ref int pageCount);
-	}
+        void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType,
+            PageSize pageSize, ref byte compactPercent, ref int pageCount);
+    }
 }

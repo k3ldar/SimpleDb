@@ -23,13 +23,7 @@
  *  14/08/2022  Simon Carter        Initially Created
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -41,79 +35,81 @@ using SimpleDB.Tests.Mocks;
 
 namespace SimpleDB.Tests
 {
-	[TestClass]
-	[ExcludeFromCodeCoverage]
-	public class SimpleDBHelpersTests
-	{
-		[TestMethod]
-		public void AddSimpleDB_RegistersServices_UsesSettingsFromISettingsProvider_Success()
-		{
-			ServiceDescriptor[] serviceDescriptors =
-			[
-				new(typeof(ISettingsProvider), new MockSettingsProvider()),
-			];
+    [TestClass]
+    [ExcludeFromCodeCoverage]
+    public class SimpleDBHelpersTests
+    {
+        [TestMethod]
+        public void AddSimpleDB_RegistersServices_UsesSettingsFromISettingsProvider_Success()
+        {
+            ServiceDescriptor[] serviceDescriptors =
+            [
+                new(typeof(ISettingsProvider), new MockSettingsProvider()),
+            ];
 
-			MockServiceCollection mockServiceCollection = new(serviceDescriptors);
+            MockServiceCollection mockServiceCollection = new(serviceDescriptors);
 
-			MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection) as MockServiceCollection;
-			Assert.AreEqual(4, Result.ServicesRegistered);
-			Assert.AreSame(Result, mockServiceCollection);
-			Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
-			Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
-			Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
-		}
+            MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection) as MockServiceCollection;
+            Assert.AreEqual(8, Result.ServicesRegistered);
+            Assert.AreSame(Result, mockServiceCollection);
+            Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
+            Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
+            Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
+            Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(IWalTableAccessor)));
+            Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ITransactionManager)));
+        }
 
-		[TestMethod]
-		[ExpectedException(typeof(ArgumentException))]
-		public void AddSimpleDB_RegistersServices_PathDoesNotExist_Throws_ArgumentException()
-		{
-			string directory = Path.Combine(Path.GetTempPath(), DateTime.Now.Ticks.ToString());
+        [TestMethod]
+        [ExpectedException(typeof(DirectoryNotFoundException))]
+        public void AddSimpleDB_RegistersServices_PathDoesNotExist_Throws_DirectoryNotFoundException()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), DateTime.Now.Ticks.ToString());
 
-			ServiceDescriptor[] serviceDescriptors =
-			[
-				new(typeof(ISettingsProvider), new MockSettingsProvider()),
-			];
+            ServiceDescriptor[] serviceDescriptors =
+            [
+                new(typeof(ISettingsProvider), new MockSettingsProvider()),
+            ];
 
-			MockServiceCollection mockServiceCollection = new(serviceDescriptors);
+            MockServiceCollection mockServiceCollection = new(serviceDescriptors);
 
-			MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection, directory, "EncKey") as MockServiceCollection;
-			Assert.AreEqual(3, Result.ServicesRegistered);
-			Assert.AreSame(Result, mockServiceCollection);
-			Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
-			Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
-			Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
-		}
+            MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection, directory, "EncKey") as MockServiceCollection;
+            Assert.AreEqual(3, Result.ServicesRegistered);
+            Assert.AreSame(Result, mockServiceCollection);
+            Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
+            Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
+            Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
+        }
 
-		[TestMethod]
-		public void AddSimpleDB_RegistersServices_UsesProvidesPathAndEncryptionKey_Success()
-		{
-			string directory = Path.Combine(Path.GetTempPath(), DateTime.Now.Ticks.ToString());
-			try
-			{
-				Directory.CreateDirectory(directory);
-				ServiceDescriptor[] serviceDescriptors =
-				[
-					new(typeof(ISettingsProvider), new MockSettingsProvider()),
-				];
+        [TestMethod]
+        public void AddSimpleDB_RegistersServices_UsesProvidesPathAndEncryptionKey_Success()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), DateTime.Now.Ticks.ToString());
+            try
+            {
+                Directory.CreateDirectory(directory);
+                ServiceDescriptor[] serviceDescriptors =
+                [
+                    new(typeof(ISettingsProvider), new MockSettingsProvider()),
+                ];
 
-				MockServiceCollection mockServiceCollection = new(serviceDescriptors);
+                MockServiceCollection mockServiceCollection = new(serviceDescriptors);
 
-				MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection, directory, "EncKey") as MockServiceCollection;
-				Assert.AreEqual(4, Result.ServicesRegistered);
-				Assert.AreSame(Result, mockServiceCollection);
-				Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
-				Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
-				Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
+                MockServiceCollection Result = SimpleDBHelper.AddSimpleDB(mockServiceCollection, directory, "EncKey") as MockServiceCollection;
+                Assert.AreEqual(8, Result.ServicesRegistered);
+                Assert.AreSame(Result, mockServiceCollection);
+                Assert.IsTrue(Result.HasServiceRegistered<IForeignKeyManager>(ServiceLifetime.Singleton));
+                Assert.IsTrue(Result.HasServiceRegistered<ISimpleDBManager>(ServiceLifetime.Singleton));
+                Assert.IsTrue(Result.HasServiceRegistered(ServiceLifetime.Singleton, typeof(ISimpleDBOperations<>)));
 
-				SimpleDBManager dbinitializer = mockServiceCollection.GetServiceInstance<ISimpleDBManager>(ServiceLifetime.Singleton) as SimpleDBManager;
-				Assert.IsNotNull(dbinitializer);
-				Assert.AreEqual(directory, dbinitializer.Path);
-				Assert.AreEqual("EncKey", dbinitializer.EncryptionKey);
-			}
-			finally
-			{
-				Directory.Delete(directory, true);
-			}
-		}
-	}
+                SimpleDBManager dbinitializer = mockServiceCollection.GetServiceInstance<ISimpleDBManager>(ServiceLifetime.Singleton) as SimpleDBManager;
+                Assert.IsNotNull(dbinitializer);
+                Assert.AreEqual(directory, dbinitializer.Path);
+                Assert.AreEqual("EncKey", dbinitializer.EncryptionKey);
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+    }
 }

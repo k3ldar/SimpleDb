@@ -22,10 +22,7 @@
  *  Date        Name                Reason
  *  05/03/2021  Simon Carter        Initially Created
  *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */using System.Diagnostics.CodeAnalysis;
 
 using AppSettings;
 

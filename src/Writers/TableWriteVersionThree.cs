@@ -26,58 +26,57 @@
 using System.Text;
 using System.Text.Json;
 
-using SimpleDB.Interfaces;
 using SimpleDB.Internal;
 
 namespace SimpleDB.Writers
 {
-	internal sealed class TableWriteVersionThree : IDataWriter
-	{
-		public ushort Version => 3;
+    internal sealed class TableWriteVersionThree : IDataWriter
+    {
+        public ushort Version => 3;
 
-		public void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType, PageSize pageSize, ref byte compactPercent, ref int pageCount)
-		{
-			byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
+        public void WriteData<T>(FileStream fileStream, List<T> recordsToSave, CompressionType compressionType, PageSize pageSize, ref byte compactPercent, ref int pageCount)
+        {
+            byte[] data = recordsToSave.Count > 0 ? JsonSerializer.SerializeToUtf8Bytes(recordsToSave, recordsToSave.GetType(), Consts.JsonSerializerOptions) : [];
 
-			bool isCompressed = false;
+            bool isCompressed = false;
 
-			using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
-			writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
+            using BinaryWriter writer = new(fileStream, Encoding.UTF8, true);
+            writer.Seek(Consts.StartOfRecordCount, SeekOrigin.Begin);
 
-			if (compressionType == CompressionType.Brotli)
-			{
-				Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
-				isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out int compressedDataLength);
+            if (compressionType == CompressionType.Brotli)
+            {
+                Span<byte> compressedData = data.Length < Consts.MaxStackAllocSize ? stackalloc byte[data.Length] : new byte[data.Length];
+                isCompressed = System.IO.Compression.BrotliEncoder.TryCompress(data, compressedData, out int compressedDataLength);
 
-				if (isCompressed)
-				{
-					compressionType = CompressionType.Brotli;
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(compressedDataLength);
-					writer.Write(data.Length);
-					writer.Write(compressedData.ToArray(), 0, compressedDataLength);
-					compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
-				}
-				else
-				{
-					writer.Write((byte)compressionType);
-					writer.Write(recordsToSave.Count);
-					writer.Write(data.Length);
-					writer.Write(data.Length);
-					writer.Write(data, 0, data.Length);
-				}
-			}
-			else
-			{
-				writer.Write((byte)compressionType);
-				writer.Write(recordsToSave.Count);
-				writer.Write(data.Length);
-				writer.Write(data.Length);
-				writer.Write(data, 0, data.Length);
-			}
+                if (isCompressed)
+                {
+                    compressionType = CompressionType.Brotli;
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(compressedDataLength);
+                    writer.Write(data.Length);
+                    writer.Write(compressedData.ToArray(), 0, compressedDataLength);
+                    compactPercent = Convert.ToByte(Shared.Utilities.Percentage(fileStream.Length, fileStream.Position));
+                }
+                else
+                {
+                    writer.Write((byte)compressionType);
+                    writer.Write(recordsToSave.Count);
+                    writer.Write(data.Length);
+                    writer.Write(data.Length);
+                    writer.Write(data, 0, data.Length);
+                }
+            }
+            else
+            {
+                writer.Write((byte)compressionType);
+                writer.Write(recordsToSave.Count);
+                writer.Write(data.Length);
+                writer.Write(data.Length);
+                writer.Write(data, 0, data.Length);
+            }
 
-			writer.BaseStream.SetLength(writer.BaseStream.Position);
-		}
-	}
+            writer.BaseStream.SetLength(writer.BaseStream.Position);
+        }
+    }
 }
