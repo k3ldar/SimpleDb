@@ -44,13 +44,14 @@ namespace SimpleDB.Internal
         /// separate from the WAL table's own PrimarySequence/SecondarySequence, which must remain
         /// solely responsible for WAL entry ordering and must never be reset or reused.
         /// </summary>
-        private const string TransactionIdSequenceName = "TransactionId";
         private readonly List<ITransaction> _activeTransactionList = [];
         private readonly object _activeTransactionListLock = new();
         private int _activeTransactions;
         private int _checkpointRunning;
         private long _checkpointsSkippedForActiveTransactions;
         private long _checkpointsCompleted;
+        private long _checkpointTableFailures;
+        private int _startupCrashRecoveryRun;
 
         private const string TimingsBegin = "TimingsBegin";
         private const string TimingsCommit = "TimingsCommit";
@@ -84,6 +85,74 @@ namespace SimpleDB.Internal
             // ITransactionManagerAttachable avoids both a circular constructor dependency between
             // the two singletons and a dependency on SimpleDBManager's concrete type.
             (simpleDBManager as ITransactionManagerAttachable)?.AttachTransactionManager(this);
+
+            // Deliberately NOT run here: SimpleDBOperations<WalEntryDataRow> (resolved through
+            // _walTableAccessor.WalTable) depends on ITransactionManager itself, so touching the WAL
+            // table while this constructor is still on the stack re-enters this singleton's own
+            // registration and Lazy<T> throws "ValueFactory attempted to access the Value property".
+            // EnsureStartupCrashRecoveryHasRun() is called instead from the first real entry point
+            // (BeginTransaction/CommitTransaction/RollbackTransaction/CheckpointDatabase), by which
+            // point construction of every singleton involved has completed.
+        }
+
+        /// <summary>
+        /// Resolves every transaction left in doubt by an unclean shutdown (a crash, or a process
+        /// kill between a data entry being logged and its Commit/Abort marker being written).
+        /// Runs at most once per <see cref="TransactionManager"/> instance.
+        /// </summary>
+        /// <remarks>
+        /// Each <see cref="SimpleDBOperations{T}"/> instance already replays its own WAL entries at
+        /// construction (redoing committed work, undoing everything else), so table data is already
+        /// correct by the time this runs - that decision depends only on the presence of a Commit
+        /// marker and is unaffected by the order between that per-table replay and this method.
+        ///
+        /// What per-table replay cannot do is resolve the WAL's own bookkeeping: a transaction with
+        /// no Commit marker is indistinguishable from one still in flight, so
+        /// <see cref="OldestUnresolvedSequence"/> must treat it as unresolved and refuse to let
+        /// truncation pass it - forever, unless something writes the missing marker. Since this
+        /// runs once before any new transaction can begin, every such transaction found here is
+        /// unambiguously an orphan of the previous run, and is safe to mark Abort.
+        /// </remarks>
+        private void EnsureStartupCrashRecoveryHasRun()
+        {
+            if (Interlocked.CompareExchange(ref _startupCrashRecoveryRun, 1, 0) != 0)
+                return;
+
+            try
+            {
+                IReadOnlyList<WalEntryDataRow> allEntries = _walTableAccessor.WalTable.Select();
+
+                HashSet<long> resolved = [.. allEntries
+                    .Where(w => w.Operation == OperationType.Commit || w.Operation == OperationType.Abort)
+                    .Select(w => w.TransactionId)];
+
+                HashSet<long> unresolvedTransactions = [.. allEntries
+                    .Select(w => w.TransactionId)
+                    .Where(transactionId => !resolved.Contains(transactionId))];
+
+                if (unresolvedTransactions.Count == 0)
+                    return;
+
+                foreach (long transactionId in unresolvedTransactions)
+                {
+                    _walTableAccessor.WalTable.Insert(new WalEntryDataRow
+                    {
+                        TransactionId = transactionId,
+                        TableName = String.Empty,
+                        Operation = OperationType.Abort,
+                        RecordId = 0,
+                        ExpectedUpdatedTicks = -1,
+                        SequenceNumber = _walTableAccessor.WalTable.NextSecondarySequence(1),
+                    });
+                }
+
+                _walTableAccessor.WalTable.ForceWrite();
+            }
+            catch
+            {
+                // Best effort - a failure here simply leaves OldestUnresolvedSequence blocking
+                // truncation as it already does today, which is safe even if not ideal.
+            }
         }
 
         /// <summary>
@@ -147,6 +216,20 @@ namespace SimpleDB.Internal
             InternalCheckpointDatabase(force: true);
         }
 
+        /// <summary>
+        /// Best-effort, threshold-gated checkpoint attempt intended for periodic background
+        /// callers (see <see cref="SimpleDBManager.Run"/>). Unlike <see cref="CheckpointDatabase"/>
+        /// this does not force a flush - it simply re-checks the same WalCheckpointThreshold
+        /// condition normally only re-evaluated on commit, so a WAL that crossed the threshold
+        /// and then went idle (no further commits) still gets checkpointed instead of sitting
+        /// above threshold indefinitely.
+        /// </summary>
+        public void CheckpointDatabaseIfNeeded()
+        {
+            if (_walTableAccessor.WalTable.RecordCount >= WalCheckpointThreshold)
+                InternalCheckpointDatabase(force: false);
+        }
+
         public int ForceCloseActiveTransactions()
         {
             List<ITransaction> snapshot;
@@ -178,8 +261,10 @@ namespace SimpleDB.Internal
             TransactionAccessMode accessMode = TransactionAccessMode.ReadWrite,
             TransactionIsolationLevel isolationLevel = TransactionIsolationLevel.DirtyRead)
         {
-            using (StopWatchTimer timer = StopWatchTimer.Initialise(_timings[TimingsBegin]))
-            {
+                using (StopWatchTimer timer = StopWatchTimer.Initialise(_timings[TimingsBegin]))
+                {
+                    EnsureStartupCrashRecoveryHasRun();
+
                 // Held for the lifetime of the transaction and released on commit or rollback. The
                 // lock is reentrant, so the nested WAL and watermark writes performed during commit
                 // reacquire it harmlessly on the same thread.
@@ -226,7 +311,23 @@ namespace SimpleDB.Internal
             {
                 try
                 {
-                    InternalCommitTransaction(transaction);
+                    try
+                    {
+                        InternalCommitTransaction(transaction);
+                    }
+                    catch
+                    {
+                        // The commit did not complete - most commonly because the Commit marker
+                        // or its ForceWrite hit a LockTimeoutException under contention. The
+                        // transaction's data entries are already durable in the WAL, so without an
+                        // explicit outcome they would look identical to those of a transaction
+                        // interrupted by a crash - permanently in doubt, and holding WAL truncation
+                        // back forever (see InternalRollbackTransaction/OldestUnresolvedSequence).
+                        // Best-effort mark it aborted so it can never orphan the WAL; failures here
+                        // are swallowed since we are already unwinding from the original exception.
+                        TryWriteBestEffortAbortMarker(transaction);
+                        throw;
+                    }
 
                     using (TimedLock listLock = TimedLock.Lock(_activeTransactionListLock))
                         _activeTransactionList.Remove(transaction);
@@ -244,6 +345,38 @@ namespace SimpleDB.Internal
                 // and the WAL has served its purpose for everything flushed.
                 if (_walTableAccessor.WalTable.RecordCount >= WalCheckpointThreshold)
                     InternalCheckpointDatabase(force: false);
+            }
+        }
+
+        /// <summary>
+        /// Best-effort abort marker used when a commit fails partway through. Swallows any
+        /// further failure (e.g. the WAL itself being unreachable) rather than masking the
+        /// original commit exception - a transaction that still cannot be marked here will be
+        /// caught by <see cref="OldestUnresolvedSequence"/> holding truncation back, which is
+        /// safer than silently discarding WAL entries that may still be needed for recovery.
+        /// </summary>
+        private void TryWriteBestEffortAbortMarker(ITransaction transaction)
+        {
+            try
+            {
+                if (transaction is not IWalEntryCollector collector || collector.Entries.Count == 0)
+                    return;
+
+                _walTableAccessor.WalTable.Insert(new WalEntryDataRow
+                {
+                    TransactionId = transaction.TransactionId,
+                    TableName = String.Empty,
+                    Operation = OperationType.Abort,
+                    RecordId = 0,
+                    ExpectedUpdatedTicks = -1,
+                    SequenceNumber = _walTableAccessor.WalTable.NextSecondarySequence(1),
+                });
+
+                _walTableAccessor.WalTable.ForceWrite();
+            }
+            catch
+            {
+                // Deliberately swallowed - see remarks above.
             }
         }
 
@@ -318,50 +451,60 @@ namespace SimpleDB.Internal
             // The table data was applied eagerly, so each operation must be reversed. Entries are
             // undone in reverse order so that multiple operations against the same record unwind
             // correctly.
-            using (StopWatchTimer timer = StopWatchTimer.Initialise(_timings[TimingsRollbackUndo]))
+            try
             {
-                for (int i = collector.Entries.Count - 1; i >= 0; i--)
+                using (StopWatchTimer timer = StopWatchTimer.Initialise(_timings[TimingsRollbackUndo]))
                 {
-                    WalEntry entry = collector.Entries[i];
-
-                    if (!_simpleDBManager.Tables.TryGetValue(entry.TableName, out ISimpleDBTable table))
-                        continue;
-
-                    if (table is not IWalUndoTarget undoTarget)
-                        continue;
-
-                    switch (entry.Operation)
+                    for (int i = collector.Entries.Count - 1; i >= 0; i--)
                     {
-                        case OperationType.Insert:
-                            undoTarget.UndoInsert(entry.RecordId);
-                            break;
+                        WalEntry entry = collector.Entries[i];
 
-                        case OperationType.Update:
-                            undoTarget.UndoUpdate(entry.RecordId, entry.UndoRecord);
-                            break;
+                        if (!_simpleDBManager.Tables.TryGetValue(entry.TableName, out ISimpleDBTable table))
+                            continue;
 
-                        case OperationType.Delete:
-                            undoTarget.UndoDelete(entry.UndoRecord);
-                            break;
+                        if (table is not IWalUndoTarget undoTarget)
+                            continue;
+
+                        switch (entry.Operation)
+                        {
+                            case OperationType.Insert:
+                                undoTarget.UndoInsert(entry.RecordId);
+                                break;
+
+                            case OperationType.Update:
+                                undoTarget.UndoUpdate(entry.RecordId, entry.UndoRecord);
+                                break;
+
+                            case OperationType.Delete:
+                                undoTarget.UndoDelete(entry.UndoRecord);
+                                break;
+                        }
                     }
                 }
             }
-
-            // The abort marker. WalRecorder already persisted this transaction's entries, so
-            // without an explicit outcome they would look identical to those of a transaction
-            // interrupted by a crash - permanently in doubt, and holding WAL truncation back for
-            // ever. Recovery uses it to reverse the entries on disk without replaying them.
-            _walTableAccessor.WalTable.Insert(new WalEntryDataRow
+            finally
             {
-                TransactionId = transaction.TransactionId,
-                TableName = String.Empty,
-                Operation = OperationType.Abort,
-                RecordId = 0,
-                ExpectedUpdatedTicks = -1,
-                SequenceNumber = _walTableAccessor.WalTable.NextSecondarySequence(1),
-            });
+                // The abort marker. WalRecorder already persisted this transaction's entries, so
+                // without an explicit outcome they would look identical to those of a transaction
+                // interrupted by a crash - permanently in doubt, and holding WAL truncation back for
+                // ever. Recovery uses it to reverse the entries on disk without replaying them.
+                //
+                // Written even when undo above failed partway through (e.g. a table lock timeout):
+                // RollbackTransaction's own finally block unconditionally removes this transaction
+                // from the active list regardless of what happens here, so skipping the marker would
+                // silently orphan its WAL entries forever and freeze checkpoint truncation.
+                _walTableAccessor.WalTable.Insert(new WalEntryDataRow
+                {
+                    TransactionId = transaction.TransactionId,
+                    TableName = String.Empty,
+                    Operation = OperationType.Abort,
+                    RecordId = 0,
+                    ExpectedUpdatedTicks = -1,
+                    SequenceNumber = _walTableAccessor.WalTable.NextSecondarySequence(1),
+                });
 
-            _walTableAccessor.WalTable.ForceWrite();
+                _walTableAccessor.WalTable.ForceWrite();
+            }
         }
 
         /// <summary>
@@ -449,22 +592,33 @@ namespace SimpleDB.Internal
                                 if (ReferenceEquals(table.Value, _walTableAccessor.WalTable))
                                     continue;
 
+                                // A registered table that has never flushed has no watermark row at all,
+                                // so a naive MIN over existing rows would silently ignore it and truncate
+                                // away entries it still needs. Seeding the row makes the set complete.
                                 if (checkpointable.ParticipatesInWal)
-                                {
-                                    walParticipants.Add(table.Key);
-
-                                    // A registered table that has never flushed has no watermark row at all,
-                                    // so a naive MIN over existing rows would silently ignore it and truncate
-                                    // away entries it still needs. Seeding the row makes the set complete.
                                     SeedWatermark(table.Key);
+
+                                try
+                                {
+                                    checkpointable.ForceWrite();
+
+                                    // Only reached when the flush above completed without throwing. A table
+                                    // is added to walParticipants - and therefore allowed to gate truncation -
+                                    // only once its own flush and watermark advance have both succeeded.
+                                    checkpointable.AdvanceCheckpointWatermark(checkpointSequence);
+
+                                    if (checkpointable.ParticipatesInWal)
+                                        walParticipants.Add(table.Key);
                                 }
-
-                                checkpointable.ForceWrite();
-
-                                // Only reached when the flush above completed without throwing. A table that
-                                // throws propagates out, skipping truncation entirely for this cycle - its WAL
-                                // entries remain the only durable copy of its data.
-                                checkpointable.AdvanceCheckpointWatermark(checkpointSequence);
+                                catch (Exception)
+                                {
+                                    // One table's failure - most commonly a LockTimeoutException under
+                                    // contention - must not abort the whole checkpoint. The table is simply
+                                    // left out of this cycle's participants, so its still-seeded watermark
+                                    // (never advanced) keeps blocking truncation of its own entries while
+                                    // every other table still gets flushed and its WAL entries reclaimed.
+                                    Interlocked.Increment(ref _checkpointTableFailures);
+                                }
                             }
 
                             InternalTruncateWal(walParticipants);
@@ -579,10 +733,9 @@ namespace SimpleDB.Internal
         /// </remarks>
         private long OldestUnresolvedSequence()
         {
-            HashSet<long> resolved = _walTableAccessor.WalTable
+            HashSet<long> resolved = [.. _walTableAccessor.WalTable
                 .Select(w => w.Operation == OperationType.Commit || w.Operation == OperationType.Abort)
-                .Select(w => w.TransactionId)
-                .ToHashSet();
+                .Select(w => w.TransactionId)];
 
             long oldest = Int64.MaxValue;
 

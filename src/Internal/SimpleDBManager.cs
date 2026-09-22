@@ -245,7 +245,7 @@ namespace SimpleDB.Internal
                     {
                         try
                         {
-                            simpleDBTable.ClearAllMemory();
+                            //simpleDBTable.ClearAllMemory();
                             _tableLastAction[simpleDBTable] = DateTime.UtcNow;
                         }
                         catch (LockTimeoutException)
@@ -256,6 +256,24 @@ namespace SimpleDB.Internal
                         OnMemoryCleared?.Invoke(simpleDBTable);
                     }
                 }
+            }
+
+            // Commits only trigger a checkpoint when the WAL crosses WalCheckpointThreshold at the
+            // moment a commit happens (see TransactionManager.InternalCommitTransaction). An app
+            // that goes idle right after crossing the threshold - or one that commits in small,
+            // infrequent bursts that never individually push the count over the line - can leave
+            // the WAL sitting above (or just under) threshold indefinitely, since nothing forces a
+            // recheck once commit activity stops. Piggybacking a periodic, best-effort checkpoint
+            // attempt onto this background thread (the same thread that used to drive
+            // ClearAllMemory) closes that gap without requiring a dedicated thread of its own.
+            try
+            {
+                TransactionManager?.CheckpointDatabaseIfNeeded();
+            }
+            catch (LockTimeoutException)
+            {
+                // Another checkpoint or an in-flight transaction currently holds what this needs;
+                // the next periodic tick will simply try again.
             }
 
             return !HasCancelled();
@@ -432,7 +450,7 @@ namespace SimpleDB.Internal
 
                 TransactionManager?.ResetTransactionSequence();
 
-                ClearMemory();
+                //ClearMemory();
 
                 ReportProgress(options.ProgressCallback, BackupProgressStage.Completed, null,
                     restoredRelativePaths.Count, restoredRelativePaths.Count, 100, "Restore complete");
