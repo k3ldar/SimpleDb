@@ -407,14 +407,14 @@ namespace SimpleDB.Internal
 
         public void ClearAllMemory()
         {
-            using (TimedLock timedLock = TimedLock.Lock(_lockObject, SimpleDBConfiguration.ClearMemoryLockTimeout))
-            {
-                if (_allRecords != null)
-                    InternalSaveRecordsToDisk(_allRecords, true, null);
+            //using (TimedLock timedLock = TimedLock.Lock(_lockObject, SimpleDBConfiguration.ClearMemoryLockTimeout))
+            //{
+            //    if (_allRecords != null)
+            //        InternalSaveRecordsToDisk(_allRecords, true, null);
 
-                _allRecords = null;
-                Volatile.Write(ref _inMemoryCacheSizeBytes, 0);
-            }
+            //    _allRecords = null;
+            //    Volatile.Write(ref _inMemoryCacheSizeBytes, 0);
+            //}
         }
 
         public IReadOnlyList<T> Select()

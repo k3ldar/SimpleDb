@@ -1768,6 +1768,12 @@
             </summary>
             <returns>The number of transactions that were rolled back.</returns>
         </member>
+        <member name="M:SimpleDB.Internal.ITransactionMaintenance.CheckpointDatabaseIfNeeded">
+            <summary>
+            Threshold-gated, non-forcing checkpoint attempt suitable for periodic background
+            invocation. See <see cref="M:SimpleDB.Internal.TransactionManager.CheckpointDatabaseIfNeeded"/>.
+            </summary>
+        </member>
         <member name="M:SimpleDB.Internal.ITransactionMaintenance.ResetTransactionSequence">
             <summary>
             Resets the transaction id sequence back to zero.
@@ -2153,12 +2159,32 @@
              on a different thread while a checkpoint runs is still counted by the barrier.
              </summary>
         </member>
-        <member name="F:SimpleDB.Internal.TransactionManager.TransactionIdSequenceName">
+        <member name="F:SimpleDB.Internal.TransactionManager._activeTransactionList">
             <summary>
             Name of the independent, engine-owned sequence used for transaction ids. Deliberately
             separate from the WAL table's own PrimarySequence/SecondarySequence, which must remain
             solely responsible for WAL entry ordering and must never be reset or reused.
             </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.EnsureStartupCrashRecoveryHasRun">
+             <summary>
+             Resolves every transaction left in doubt by an unclean shutdown (a crash, or a process
+             kill between a data entry being logged and its Commit/Abort marker being written).
+             Runs at most once per <see cref="T:SimpleDB.Internal.TransactionManager"/> instance.
+             </summary>
+             <remarks>
+             Each <see cref="T:SimpleDB.Internal.SimpleDBOperations`1"/> instance already replays its own WAL entries at
+             construction (redoing committed work, undoing everything else), so table data is already
+             correct by the time this runs - that decision depends only on the presence of a Commit
+             marker and is unaffected by the order between that per-table replay and this method.
+            
+             What per-table replay cannot do is resolve the WAL's own bookkeeping: a transaction with
+             no Commit marker is indistinguishable from one still in flight, so
+             <see cref="M:SimpleDB.Internal.TransactionManager.OldestUnresolvedSequence"/> must treat it as unresolved and refuse to let
+             truncation pass it - forever, unless something writes the missing marker. Since this
+             runs once before any new transaction can begin, every such transaction found here is
+             unambiguously an orphan of the previous run, and is safe to mark Abort.
+             </remarks>
         </member>
         <member name="P:SimpleDB.Internal.TransactionManager.InternalActiveTransactionCount">
              <summary>
@@ -2189,6 +2215,25 @@
         </member>
         <member name="P:SimpleDB.Internal.TransactionManager.GetAllTimings">
             <inheritdoc/>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.CheckpointDatabaseIfNeeded">
+            <summary>
+            Best-effort, threshold-gated checkpoint attempt intended for periodic background
+            callers (see <see cref="M:SimpleDB.Internal.SimpleDBManager.Run(System.Object)"/>). Unlike <see cref="M:SimpleDB.Internal.TransactionManager.CheckpointDatabase"/>
+            this does not force a flush - it simply re-checks the same WalCheckpointThreshold
+            condition normally only re-evaluated on commit, so a WAL that crossed the threshold
+            and then went idle (no further commits) still gets checkpointed instead of sitting
+            above threshold indefinitely.
+            </summary>
+        </member>
+        <member name="M:SimpleDB.Internal.TransactionManager.TryWriteBestEffortAbortMarker(SimpleDB.ITransaction)">
+            <summary>
+            Best-effort abort marker used when a commit fails partway through. Swallows any
+            further failure (e.g. the WAL itself being unreachable) rather than masking the
+            original commit exception - a transaction that still cannot be marked here will be
+            caught by <see cref="M:SimpleDB.Internal.TransactionManager.OldestUnresolvedSequence"/> holding truncation back, which is
+            safer than silently discarding WAL entries that may still be needed for recovery.
+            </summary>
         </member>
         <member name="M:SimpleDB.Internal.TransactionManager.InternalCheckpointDatabase(System.Boolean)">
              <summary>

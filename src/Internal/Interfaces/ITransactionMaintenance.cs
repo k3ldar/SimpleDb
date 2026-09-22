@@ -15,6 +15,12 @@ namespace SimpleDB.Internal
         int ForceCloseActiveTransactions();
 
         /// <summary>
+        /// Threshold-gated, non-forcing checkpoint attempt suitable for periodic background
+        /// invocation. See <see cref="SimpleDB.Internal.TransactionManager.CheckpointDatabaseIfNeeded"/>.
+        /// </summary>
+        void CheckpointDatabaseIfNeeded();
+
+        /// <summary>
         /// Resets the transaction id sequence back to zero.
         /// </summary>
         void ResetTransactionSequence();
